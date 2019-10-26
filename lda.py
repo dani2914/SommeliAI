@@ -4,6 +4,8 @@
 import argparse
 
 import numpy as np
+import pandas as pd
+import multiprocessing as mp
 import torch
 from torch.distributions import constraints
 
@@ -15,43 +17,51 @@ from pyro.infer import TraceEnum_ELBO
 from sklearn.datasets import fetch_20newsgroups
 from sklearn.feature_extraction.text import CountVectorizer
 
-def lda_model(doc_list=None, num_docs=None, num_words_per_doc_vec=None,
+
+class original_lda:
+
+    def __init__(self):
+        return
+
+
+    def model(self, doc_list=None, num_docs=None, num_words_per_doc_vec=None,
               num_topics=None, num_vocabs=None):
-    """pyro model for lda"""
+        """pyro model for lda"""
 
-    # beta => prior for the per-topic word distributions
-    beta_0 = torch.ones(num_vocabs) / num_vocabs
+        # beta => prior for the per-topic word distributions
+        beta_0 = torch.ones(num_vocabs) / num_vocabs
 
-    # returns t x w matrix
-    with pyro.plate("topics", num_topics):
-        topics_x_words = pyro.sample("topics_x_words", dist.Dirichlet(beta_0))
+        # returns t x w matrix
+        with pyro.plate("topics", num_topics):
+            topics_x_words = pyro.sample("topics_x_words", dist.Dirichlet(beta_0))
 
-        # alpha => prior for the per-document topic distribution
-        alpha_0 = torch.ones(num_topics) / num_topics
+            # alpha => prior for the per-document topic distribution
+            alpha_0 = torch.ones(num_topics) / num_topics
 
-    # returns d x t matrix 
-    doc_x_words = []
-    for i in pyro.plate("documents", num_docs):
+        # returns d x t matrix 
+        doc_x_words = []
+        for i in pyro.plate("documents", num_docs):
 
-        docs_x_topics = pyro.sample("docs_x_topics_{}".format(i), dist.Dirichlet(alpha_0))
+            docs_x_topics = pyro.sample("docs_x_topics_{}".format(i),
+                                        dist.Dirichlet(alpha_0))
 
-        data = None if doc_list is None else doc_list[i]
+            data = None if doc_list is None else doc_list[i]
 
-        with pyro.plate("words_{}".format(i), num_words_per_doc_vec[i]):
-            word_x_topics = pyro.sample("word_x_topics_{}".format(i),
-                                        dist.Categorical(docs_x_topics),
-                                        infer={"enumerate": "parallel"})
+            with pyro.plate("words_{}".format(i), num_words_per_doc_vec[i]):
+                word_x_topics = pyro.sample("word_x_topics_{}".format(i),
+                                            dist.Categorical(docs_x_topics),
+                                            infer={"enumerate": "parallel"})
 
-            words = pyro.sample("docs_x_words_{}".format(i),
-                                dist.Categorical(topics_x_words[word_x_topics]),
-                                obs=data)
+                words = pyro.sample("docs_x_words_{}".format(i),
+                                    dist.Categorical(topics_x_words[word_x_topics]),
+                                    obs=data)
 
-        doc_x_words.append(words)
+            doc_x_words.append(words)
 
-    return doc_x_words, topics_x_words
+        return doc_x_words, topics_x_words
 
 
-def parametrized_guide(doc_list=None, num_docs=None, num_words_per_doc_vec=None,
+def guide(self, doc_list=None, num_docs=None, num_words_per_doc_vec=None,
                        num_topics=None, num_vocabs=None):
     """pyro guide for lda inference"""
 
@@ -68,7 +78,7 @@ def parametrized_guide(doc_list=None, num_docs=None, num_words_per_doc_vec=None,
         pyro.sample("docs_x_topics_{}".format(i), dist.Dirichlet(alpha_q))
 
 
-def fetch_preprocess_dataset(num_topics, num_docs):
+def fetch_preprocess_sklearn_dataset(num_topics, num_docs):
     """ fetch dataset from sklearn, turn into vector of indexes """
 
     # get dataset first to get topic names / inefficient but who cares -- not costly
@@ -97,7 +107,31 @@ def fetch_preprocess_dataset(num_topics, num_docs):
                    for i in range(count_vec.shape[0])]
     vocab_dict = vectorizer.vocabulary_
 
-    return doc_ix_list, vocab_dict, count_vec
+    return doc_ix_list, vocab_dict
+
+
+def fetch_n_preprocess_data():
+    df_list = [pd.read_csv("winemag_dataset_%s.csv" % i) for i in range(1,7)]
+    df = pd.concat(df_list)
+    txt_vec = df["description"]
+
+    # vectorize data and retrieve count vector, indexed vector, dict to return
+    vectorizer = CountVectorizer()
+    transformed_vec = vectorizer.fit_transform(txt_vec)
+
+    doc_ix_list = []
+    print("Running %s items..." % transformed_vec.shape[0])
+    for i in range(transformed_vec.shape[0]):
+        if i % 1000 == 0:
+            print("Running item %s" % i)
+
+        count_vec = transformed_vec[i].toarray()
+        doc_ix_list.append(torch.tensor(np.repeat(range(count_vec.shape[1]), count_vec[0])))
+
+    vocab_dict = vectorizer.vocabulary_
+
+    return doc_ix_list, vocab_dict
+
 
 def main():
     """ main function"""
@@ -106,11 +140,11 @@ def main():
     num_topics = 5
     num_docs = 50
     adam_learn_rate = 0.01
-    use_cuda = True
+    #use_cuda = False 
     test_doc_tf = False         #should we use a test set
 
-    if use_cuda:
-        torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    # if use_cuda:
+        #    torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
     # pyro settings
     pyro.set_rng_seed(0)
@@ -127,19 +161,19 @@ def main():
     # if flag for using test doc is yes, then use a toy test set
     if test_doc_tf:
         doc_list = [
-            torch.tensor([1, 2, 3, 4, 5]).cuda(),
-            torch.tensor([0, 2, 4, 6, 8, 9]).cuda(),
-            torch.tensor([1, 3, 5, 7]).cuda(),
-            torch.tensor([5, 6, 7]).cuda()]
+            torch.tensor([1, 2, 3, 4, 5]),#.cuda(),
+            torch.tensor([0, 2, 4, 6, 8, 9]),#.cuda(),
+            torch.tensor([1, 3, 5, 7]),#.cuda(),
+            torch.tensor([5, 6, 7])]#.cuda()]
         num_vocabs = len(np.unique([words for docs in doc_list for words in docs]))
         num_docs = len(doc_list)
 
     else:
-        doc_list, vocabs_dict, count_vec = fetch_preprocess_dataset(num_topics, num_docs)
+        doc_list, vocabs_dict = fetch_preprocess_sklearn_dataset(num_topics, num_docs)
         num_vocabs = len(vocabs_dict)
 
-    num_docs = torch.tensor(len(doc_list)).cuda()
-    num_words_per_doc_vec = torch.tensor([len(doc) for doc in doc_list]).cuda()
+    num_docs = torch.tensor(len(doc_list))#.cuda()
+    num_words_per_doc_vec = torch.tensor([len(doc) for doc in doc_list])#.cuda()
 
     # run inference
     losses, alpha, beta = [], [], []
@@ -162,16 +196,14 @@ def main():
         vocab = np.sort(vocab, order="index")
 
         posterior_doc_x_words, posterior_topics_x_words = \
-        lda_model(doc_list, num_docs, num_words_per_doc_vec, num_topics, num_vocabs)
+                lda_model(doc_list, num_docs, num_words_per_doc_vec, num_topics, num_vocabs)
 
-        print("here")
 
         for i in range(num_topics):
             non_trivial_word_ix = np.where(posterior_topics_x_words[i].cpu() > 0.01)[0]
             print("topic {}:".format(i))
             print(vocab[non_trivial_word_ix])
 
-        print("there")
 
 
 
