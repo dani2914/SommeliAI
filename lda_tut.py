@@ -1,21 +1,3 @@
-"""
-This example implements amortized Latent Dirichlet Allocation [1],
-demonstrating how to marginalize out discrete assignment variables in a Pyro
-model. This model and inference algorithm treat documents as vectors of
-categorical variables (vectors of word ids), and collapses word-topic
-assignments using Pyro's enumeration. We use PyTorch's reparametrized Gamma and
-Dirichlet distributions [2], avoiding the need for Laplace approximations as in
-[1]. Following [1] we use the Adam optimizer and clip gradients.
-
-**References:**
-
-[1] Akash Srivastava, Charles Sutton. ICLR 2017.
-    "Autoencoding Variational Inference for Topic Models"
-    https://arxiv.org/pdf/1703.01488.pdf
-[2] Martin Jankowiak, Fritz Obermeyer. ICML 2018.
-    "Pathwise gradients beyond the reparametrization trick"
-    https://arxiv.org/pdf/1806.01851.pdf
-"""
 import argparse
 import functools
 import numpy as np
