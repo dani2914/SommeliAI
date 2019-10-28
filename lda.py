@@ -39,17 +39,17 @@ class origLDA:
         doc_x_words = []
         for i in pyro.plate("documents", num_docs):
 
-            docs_x_topics = pyro.sample("docs_x_topics_{}".format(i),
+            docs_x_topics = pyro.sample(f"docs_x_topics_{i}",
                                         dist.Dirichlet(alpha_0))
 
             data = None if doc_list is None else doc_list[i]
 
-            with pyro.plate("words_{}".format(i), num_words_per_doc_vec[i]):
-                word_x_topics = pyro.sample("word_x_topics_{}".format(i),
+            with pyro.plate(f"words_{i}", num_words_per_doc_vec[i]):
+                word_x_topics = pyro.sample(f"word_x_topics_{i}",
                                             dist.Categorical(docs_x_topics),
-                                            infer={"enumerate": "parallel"})
+                                            infer={"enumerate": "sequential"})
 
-                words = pyro.sample("docs_x_words_{}".format(i),
+                words = pyro.sample(f"docs_x_words_{i}",
                                     dist.Categorical(topics_x_words[word_x_topics]),
                                     obs=data)
 
@@ -72,4 +72,4 @@ class origLDA:
             alpha_q = pyro.param("alpha_q", torch.ones(num_topics), constraint=constraints.positive)
 
         for i in pyro.plate("documents", num_docs):
-            pyro.sample("docs_x_topics_{}".format(i), dist.Dirichlet(alpha_q))
+            pyro.sample(f"docs_x_topics_{i}", dist.Dirichlet(alpha_q))

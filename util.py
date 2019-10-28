@@ -1,5 +1,8 @@
 """ utility functions """
 
+import os
+import glob
+
 import pandas as pd
 import numpy as np
 import torch
@@ -9,8 +12,13 @@ from scipy import sparse
 
 def fetch_dataset(n=None):
     """ fetch data from disk and return a dataframe """
+    data_root_dir = os.path.join(".", "data")
+    pattern = "winemag_dataset_*.csv"
 
-    df_list = [pd.read_csv("winemag_dataset_%s.csv" % i) for i in range(6)]
+    file_list = glob.glob(os.path.join(data_root_dir, pattern))
+
+    df_list = [pd.read_csv(fname) for fname in file_list]
+    
     full_df = pd.concat(df_list)
 
     # give unique row names to all

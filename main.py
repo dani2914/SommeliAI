@@ -1,4 +1,5 @@
 """ main driver """
+
 import importlib
 import util
 import lda
@@ -7,7 +8,6 @@ import torch
 import pyro
 from pyro.optim import Adam
 from pyro.infer import TraceEnum_ELBO
-
 
 pyro.set_rng_seed(0)
 pyro.clear_param_store()
@@ -18,7 +18,7 @@ def main():
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 50 #use None if want to use full dataset
+    TESTING_SUBSIZE = 1000 #use None if want to use full dataset
 
     full_df = util.fetch_dataset(n=TESTING_SUBSIZE)
     clean_df = util.preprocess(full_df)
