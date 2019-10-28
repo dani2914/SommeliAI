@@ -20,8 +20,16 @@ def main():
     ADAM_LEARN_RATE = 0.01
     TESTING_SUBSIZE = 50 #use None if want to use full dataset
 
-    full_df = util.fetch_dataset(n=TESTING_SUBSIZE)
-    clean_df = util.preprocess(full_df)
+    full_df = util.fetch_dataset()
+
+    # keep topics with the highest number of txt, and add min threshold if want
+    full_df = util.filter_by_topic(full_df, keep_top_n_topics=100)
+
+    # if not none, then subset the dataframe for testing purposes
+    if(TESTING_SUBSIZE is not None) full_df = full_df.head(TESTING_SUBSIZE)
+
+    # remove stop words, punctuation, digits and then change to lower case
+    clean_df = util.preprocess(full_df, preprocess=True)
 
     txt_vec = clean_df["description"]
     topic_vec = clean_df["variety"]
@@ -29,7 +37,7 @@ def main():
 
     indexed_txt_list, vocab_dict = util.conv_word_to_indexed_txt(txt_vec)
 
-    num_topic = len(unique_topics) 
+    num_topic = len(unique_topics)
     num_vocab = len(vocab_dict)
     num_txt = len(indexed_txt_list)
     num_words_per_txt = [len(txt) for txt in indexed_txt_list]
