@@ -26,7 +26,8 @@ def main():
     full_df = util.filter_by_topic(full_df, keep_top_n_topics=100)
 
     # if not none, then subset the dataframe for testing purposes
-    if(TESTING_SUBSIZE is not None) full_df = full_df.head(TESTING_SUBSIZE)
+    if(TESTING_SUBSIZE is not None):
+        full_df = full_df.head(TESTING_SUBSIZE)
 
     # remove stop words, punctuation, digits and then change to lower case
     clean_df = util.preprocess(full_df, preprocess=True)
