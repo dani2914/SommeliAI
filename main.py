@@ -2,16 +2,21 @@
 
 import importlib
 import util
-import lda
 import numpy as np
 import torch
 import pyro
 from pyro.optim import Adam
 from pyro.infer import TraceEnum_ELBO
 
+from models import (
+    origLDA,
+    vaniLDA,
+)
+
 pyro.set_rng_seed(0)
 pyro.clear_param_store()
 pyro.enable_validation(True)
+
 
 def main():
     """ main function """
@@ -55,13 +60,13 @@ def main():
 #    num_words_per_txt = [len(txt) for txt in indexed_txt_list]
 
     # create object of LDA class
-    orig_lda = lda.origLDA()
+    orig_lda = vaniLDA()
 
     svi = pyro.infer.SVI(
         model=orig_lda.model,
         guide=orig_lda.guide,
         optim=Adam({"lr": ADAM_LEARN_RATE}),
-        loss=TraceEnum_ELBO(max_plate_nesting=2))
+        loss=orig_lda.loss)
 
     losses, alpha, beta = [], [], []
     num_step = 100
