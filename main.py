@@ -39,6 +39,7 @@ def main():
 
     txt_vec = clean_df["description"]
     topic_vec = clean_df["variety"]
+    score_vec = clean_df["points"].astype(np.float64)
     unique_topics = np.unique(topic_vec)
 
     indexed_txt_list, vocab_dict = util.conv_word_to_indexed_txt(txt_vec)
@@ -60,7 +61,8 @@ def main():
 #    num_words_per_txt = [len(txt) for txt in indexed_txt_list]
 
     # create object of LDA class
-    orig_lda = vaniLDA()
+    # orig_lda = origLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
+    orig_lda = vaniLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
 
     svi = pyro.infer.SVI(
         model=orig_lda.model,
@@ -68,15 +70,16 @@ def main():
         optim=Adam({"lr": ADAM_LEARN_RATE}),
         loss=orig_lda.loss)
 
+    args = (indexed_txt_list,)
+
     losses, alpha, beta = [], [], []
     num_step = 100
     for step in range(num_step):
-
-        loss = svi.step(indexed_txt_list, num_txt, num_words_per_txt,
-                          num_topic, num_vocab)
+        loss = svi.step(*args)
         losses.append(loss)
-        alpha.append(pyro.param("alpha_q"))
-        beta.append(pyro.param("beta_q"))
+        if isinstance(orig_lda, origLDA):
+            alpha.append(pyro.param("alpha_q"))
+            beta.append(pyro.param("beta_q"))
         if step % 10 == 0:
             print("{}: {}".format(step, np.round(loss, 1)))
 
@@ -86,8 +89,7 @@ def main():
     vocab = np.sort(vocab, order="index")
 
     posterior_doc_x_words, posterior_topics_x_words = \
-            orig_lda.model(indexed_txt_list, num_txt, num_words_per_txt,
-                           num_topic, num_vocab)
+            orig_lda.model(*args)
 
     for i in range(num_topic):
         non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.01)[0]
