@@ -107,6 +107,7 @@ def conv_word_to_indexed_txt(txt_vec):
             tmp_list.append(y)
 
         last_x = x
+    indexed_txt_list.append(torch.FloatTensor(tmp_list))
 
     # the dictionary key to match each int to the original word
     vocab_dict = vectorizer.vocabulary_
