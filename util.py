@@ -26,7 +26,7 @@ def fetch_dataset():
     file_list = glob.glob(os.path.join(data_root_dir, pattern))
 
     df_list = [pd.read_csv(fname) for fname in file_list]
-    
+
     full_df = pd.concat(df_list)
 
     # give unique row names to all
@@ -91,23 +91,18 @@ def conv_word_to_indexed_txt(txt_vec):
     x_vec = np.repeat(x_vec, count_vec)
     y_vec = np.repeat(y_vec, count_vec)
 
+    #convert to torch variables
+    x_vec = torch.tensor(x_vec, dtype=torch.int32)
+    y_vec = torch.tensor(y_vec, dtype=torch.float)
+
     # sort the vecs
     sort_ix = np.argsort(x_vec)
     x_vec = x_vec[sort_ix]
     y_vec = y_vec[sort_ix]
 
-    last_x = 0
-    indexed_txt_list = []
-    tmp_list = []
-    for x, y in zip(x_vec, y_vec):
-        if x > last_x:
-            indexed_txt_list.append(torch.FloatTensor(tmp_list))
-            tmp_list = [y]
-        else:
-            tmp_list.append(y)
-
-        last_x = x
-    indexed_txt_list.append(torch.FloatTensor(tmp_list))
+    x_vec_bincount = torch.bincount(x_vec)
+    bincount_tup = tuple(int(bincount) for bincount in x_vec_bincount)
+    indexed_txt_list = list(torch.split(y_vec, bincount_tup))
 
     # the dictionary key to match each int to the original word
     vocab_dict = vectorizer.vocabulary_
