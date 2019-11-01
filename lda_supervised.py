@@ -17,29 +17,33 @@ from pyro.optim import ClippedAdam
 
 logging.basicConfig(format='%(relativeCreated) 9d %(message)s', level=logging.INFO)
 
-def model(data=None, num_docs=None, num_words_per_doc_vec=None,
+def model(data=None, label=None, num_docs=None, num_words_per_doc_vec=None,
               num_topics=None, num_vocabs=None):
     # Globals.
     with pyro.plate("topics", num_topics):
-        topic_weights = pyro.sample("topic_weights", dist.Gamma(1. / num_topics, 1.))
-        topic_words = pyro.sample("topic_words",
+        topic_words = pyro.sample("beta",
                                   dist.Dirichlet(torch.ones(num_vocabs) / num_vocabs))
 
     # returns d x t matrix
     doc_x_words = []
     # Locals.
+    with pyro.plate("labels", num_topics):
+        label_topics = pyro.sample("theta",
+                                  dist.Dirichlet(torch.ones(num_topics) / num_topics))
+
     for i in pyro.plate("documents", num_docs):
         words = data[i]
-        doc_topics = pyro.sample("doc_topics_{}".format(i), dist.Dirichlet(topic_weights))
+        doc_topics = label_topics[label[i]]
         with pyro.plate("words_{}".format(i), num_words_per_doc_vec[i]):
-            word_topics = pyro.sample("word_topics_{}".format(i), dist.Categorical(doc_topics),
+            word_topics = pyro.sample("z_{}".format(i), dist.Categorical(doc_topics),
                                           infer={"enumerate": "parallel"})
-            words = pyro.sample("doc_words_{}".format(i), dist.Categorical(topic_words[word_topics]),
+            words = pyro.sample("docs_x_words_{}".format(i), dist.Categorical(topic_words[word_topics]),
                                    obs=words)
 
         doc_x_words.append(words)
 
-    return topic_weights, topic_words, doc_x_words
+
+    return topic_words, doc_x_words
 
 
 # We will use amortized inference of the local topic variables, achieved by a
@@ -60,33 +64,23 @@ def make_predictor(num_words, num_topics, args):
     return nn.Sequential(*layers)
 
 
-def parametrized_guide(predictor, data=None, num_docs=None, num_words_per_doc_vec=None,
+def guide(data=None, label=None, num_docs=None, num_words_per_doc_vec=None,
               num_topics=None, num_vocabs=None):
-    topic_weights_posterior = pyro.param(
-            "topic_weights_posterior",
-            lambda: torch.ones(num_topics),
-            constraint=constraints.positive)
-    topic_words_posterior = pyro.param(
-            "topic_words_posterior",
-            lambda: torch.ones(num_topics, num_vocabs),
-            constraint=constraints.positive)
+    # beta_q => q for the per-topic word distribution
+    beta_q = pyro.param("beta_q", torch.ones(num_vocabs), constraint=constraints.positive)
+    eta_q = pyro.param("eta_q", torch.ones(num_topics), constraint=constraints.positive)
+
     with pyro.plate("topics", num_topics):
-        pyro.sample("topic_weights", dist.Gamma(topic_weights_posterior, 1.))
-        pyro.sample("topic_words", dist.Dirichlet(topic_words_posterior))
+        pyro.sample("beta", dist.Dirichlet(beta_q))
 
-    pyro.module("predictor", predictor)
-    for i in pyro.plate("documents", num_docs):
-        words = data[i]
-        # The neural network will operate on histograms rather than word
-        # index vectors, so we'll convert the raw data to a histogram.
-        counts = (torch.zeros(num_vocabs)
-                       .scatter_add(0, words, torch.ones(words.shape[0])))
-        doc_topics = predictor(counts)
-        pyro.sample("doc_topics_{}".format(i), dist.Delta(doc_topics, event_dim=1))
+    with pyro.plate("labels", num_topics):
+        pyro.sample("theta", dist.Dirichlet(eta_q))
 
 
-def main(args):
-    TESTING_SUBSIZE = 55
+def main():
+    TESTING_SUBSIZE = 50
+    learning_rate = 0.01
+    num_steps = 1000
     logging.info('Generating data')
     pyro.set_rng_seed(0)
     pyro.clear_param_store()
@@ -105,25 +99,24 @@ def main(args):
 
     topic_vec = clean_df["variety"]
     unique_topics = np.unique(topic_vec)
+    topic_map = {unique_topics[i]:i for i in range(len(unique_topics))}
+
+    clean_df.loc[:, "class"] = clean_df["variety"].apply(lambda row: topic_map[row])
 
     num_topic = len(unique_topics)
     num_vocab = len(vocab_dict)
     num_txt = len(indexed_txt_list)
     num_words_per_txt = [len(txt) for txt in indexed_txt_list]
-    print(num_topic)
 
     # We'll train using SVI.
     logging.info('-' * 40)
     logging.info('Training on {} documents'.format(num_txt))
-    predictor = make_predictor(num_vocab, num_topic, args)
-    guide = functools.partial(parametrized_guide, predictor)
-    Elbo = JitTraceEnum_ELBO if args.jit else TraceEnum_ELBO
-    elbo = Elbo(max_plate_nesting=2)
-    optim = ClippedAdam({'lr': args.learning_rate})
-    svi = SVI(model, guide, optim, elbo)
+
+    optim = ClippedAdam({'lr': learning_rate})
+    svi = SVI(model, guide, optim, TraceEnum_ELBO(max_plate_nesting=2))
     logging.info('Step\tLoss')
-    for step in range(args.num_steps):
-        loss = svi.step(indexed_txt_list, num_txt, num_words_per_txt,
+    for step in range(num_steps):
+        loss = svi.step(indexed_txt_list, clean_df.loc[:, "class"].tolist(), num_txt, num_words_per_txt,
                           num_topic, num_vocab)
         if step % 100 == 0:
             logging.info('{: >5d}\t{}'.format(step, loss))
@@ -135,8 +128,9 @@ def main(args):
     vocab = np.array([item for item in vocab_dict.items()], dtype=dtype)
     vocab = np.sort(vocab, order="index")
 
-    posterior_topic_weights, posterior_topics_x_words, posterior_doc_x_words =  \
-        model(indexed_txt_list, num_txt, num_words_per_txt,
+    posterior_topics_x_words, posterior_doc_x_words =  \
+        model(indexed_txt_list, clean_df.loc[:, "class"].tolist(),
+              num_txt, num_words_per_txt,
                            num_topic, num_vocab)
 
     for i in range(num_topic):
@@ -146,12 +140,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    assert pyro.__version__.startswith('0.4.1')
-    parser = argparse.ArgumentParser(description="Amortized Latent Dirichlet Allocation")
-
-    parser.add_argument("-n", "--num-steps", default=1000, type=int)
-    parser.add_argument("-l", "--layer-sizes", default="128-128")
-    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
-    parser.add_argument('--jit', action='store_true')
-    args = parser.parse_args()
-    main(args)
+    main()
