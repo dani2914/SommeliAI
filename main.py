@@ -1,24 +1,29 @@
 """ main driver """
+
 import importlib
 import util
-import lda
 import numpy as np
 import torch
 import pyro
 from pyro.optim import Adam
 from pyro.infer import TraceEnum_ELBO
 
+from models import (
+    origLDA,
+    vaniLDA,
+)
 
 pyro.set_rng_seed(0)
 pyro.clear_param_store()
 pyro.enable_validation(True)
+
 
 def main():
     """ main function """
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 50 #use None if want to use full dataset
+    TESTING_SUBSIZE = 1000 #use None if want to use full dataset
 
     full_df = util.fetch_dataset()
 
@@ -26,13 +31,15 @@ def main():
     full_df = util.filter_by_topic(full_df, keep_top_n_topics=100)
 
     # if not none, then subset the dataframe for testing purposes
-    if(TESTING_SUBSIZE is not None) full_df = full_df.head(TESTING_SUBSIZE)
+    if(TESTING_SUBSIZE is not None):
+        full_df = full_df.head(TESTING_SUBSIZE)
 
     # remove stop words, punctuation, digits and then change to lower case
     clean_df = util.preprocess(full_df, preprocess=True)
 
     txt_vec = clean_df["description"]
     topic_vec = clean_df["variety"]
+    score_vec = clean_df["points"].astype(np.float64)
     unique_topics = np.unique(topic_vec)
 
     indexed_txt_list, vocab_dict = util.conv_word_to_indexed_txt(txt_vec)
@@ -54,23 +61,25 @@ def main():
 #    num_words_per_txt = [len(txt) for txt in indexed_txt_list]
 
     # create object of LDA class
-    orig_lda = lda.origLDA()
+    # orig_lda = origLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
+    orig_lda = vaniLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
 
     svi = pyro.infer.SVI(
         model=orig_lda.model,
         guide=orig_lda.guide,
         optim=Adam({"lr": ADAM_LEARN_RATE}),
-        loss=TraceEnum_ELBO(max_plate_nesting=2))
+        loss=orig_lda.loss)
+
+    args = (indexed_txt_list,)
 
     losses, alpha, beta = [], [], []
     num_step = 100
     for step in range(num_step):
-
-        loss = svi.step(indexed_txt_list, num_txt, num_words_per_txt,
-                          num_topic, num_vocab)
+        loss = svi.step(*args)
         losses.append(loss)
-        alpha.append(pyro.param("alpha_q"))
-        beta.append(pyro.param("beta_q"))
+        if isinstance(orig_lda, origLDA):
+            alpha.append(pyro.param("alpha_q"))
+            beta.append(pyro.param("beta_q"))
         if step % 10 == 0:
             print("{}: {}".format(step, np.round(loss, 1)))
 
@@ -80,8 +89,7 @@ def main():
     vocab = np.sort(vocab, order="index")
 
     posterior_doc_x_words, posterior_topics_x_words = \
-            orig_lda.model(indexed_txt_list, num_txt, num_words_per_txt,
-                           num_topic, num_vocab)
+            orig_lda.model(*args)
 
     for i in range(num_topic):
         non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.01)[0]
