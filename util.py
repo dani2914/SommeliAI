@@ -108,4 +108,8 @@ def conv_word_to_indexed_txt(txt_vec):
     vocab_dict = vectorizer.vocabulary_
 
     print("Converted words to indexes of integers.")
-    return indexed_txt_list, vocab_dict
+
+    vocab_count = sparse_count_vec.data
+
+
+    return indexed_txt_list, vocab_dict, vocab_count

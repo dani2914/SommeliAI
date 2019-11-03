@@ -86,31 +86,6 @@ def parametrized_guide(predictor, data=None, num_docs=None, num_words_per_doc_ve
 
 
 def main(args):
-    TESTING_SUBSIZE = 55
-    logging.info('Generating data')
-    pyro.set_rng_seed(0)
-    pyro.clear_param_store()
-    pyro.enable_validation(__debug__)
-
-    wine1 = pd.read_csv('winemag_dataset_0.csv')
-    clean_df = util.preprocess(wine1, preprocess=True)
-
-    # if not none, then subset the dataframe for testing purposes
-    if TESTING_SUBSIZE is not None:
-        clean_df = clean_df.head(TESTING_SUBSIZE)
-
-    indexed_txt_list, vocab_dict = util.conv_word_to_indexed_txt(clean_df['description'])
-
-    #true_topic_weights, true_topic_words, data = model(indexed_txt_list, args=args)
-
-    topic_vec = clean_df["variety"]
-    unique_topics = np.unique(topic_vec)
-
-    num_topic = len(unique_topics)
-    num_vocab = len(vocab_dict)
-    num_txt = len(indexed_txt_list)
-    num_words_per_txt = [len(txt) for txt in indexed_txt_list]
-    print(num_topic)
 
     # We'll train using SVI.
     logging.info('-' * 40)
@@ -118,7 +93,7 @@ def main(args):
     predictor = make_predictor(num_vocab, num_topic, args)
     guide = functools.partial(parametrized_guide, predictor)
     Elbo = JitTraceEnum_ELBO if args.jit else TraceEnum_ELBO
-    elbo = Elbo(max_plate_nesting=2)
+    elbo = TraceEnum_ELBO(max_plate_nesting=2)
     optim = ClippedAdam({'lr': args.learning_rate})
     svi = SVI(model, guide, optim, elbo)
     logging.info('Step\tLoss')
@@ -147,11 +122,4 @@ def main(args):
 
 if __name__ == '__main__':
     assert pyro.__version__.startswith('0.4.1')
-    parser = argparse.ArgumentParser(description="Amortized Latent Dirichlet Allocation")
-
-    parser.add_argument("-n", "--num-steps", default=1000, type=int)
-    parser.add_argument("-l", "--layer-sizes", default="128-128")
-    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
-    parser.add_argument('--jit', action='store_true')
-    args = parser.parse_args()
     main(args)

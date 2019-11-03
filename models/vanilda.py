@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.distributions import constraints
+from pyro.infer import TraceEnum_ELBO
 
 import pyro
 import pyro.distributions as dist
@@ -26,7 +27,7 @@ class vaniLDA:
 
     @property
     def loss(self):
-        return Trace_ELBO(max_plate_nesting=2)
+        return TraceEnum_ELBO(max_plate_nesting=2)
 
     def model(self, doc_list=None):
         """pyro model for lda"""

@@ -1,5 +1,7 @@
 """ main driver """
 
+import argparse
+import functools
 import importlib
 import util
 import numpy as np
@@ -11,6 +13,8 @@ from pyro.infer import TraceEnum_ELBO
 from models import (
     origLDA,
     vaniLDA,
+    vaeLDA,
+    supervisedLDA
 )
 
 pyro.set_rng_seed(0)
@@ -18,7 +22,7 @@ pyro.clear_param_store()
 pyro.enable_validation(True)
 
 
-def main():
+def main(neural_args):
     """ main function """
 
     # CONSTANTS
@@ -31,7 +35,7 @@ def main():
     full_df = util.filter_by_topic(full_df, keep_top_n_topics=100)
 
     # if not none, then subset the dataframe for testing purposes
-    if(TESTING_SUBSIZE is not None):
+    if TESTING_SUBSIZE is not None:
         full_df = full_df.head(TESTING_SUBSIZE)
 
     # remove stop words, punctuation, digits and then change to lower case
@@ -42,7 +46,11 @@ def main():
     score_vec = clean_df["points"].astype(np.float64)
     unique_topics = np.unique(topic_vec)
 
-    indexed_txt_list, vocab_dict = util.conv_word_to_indexed_txt(txt_vec)
+    indexed_txt_list, vocab_dict, vocab_count = util.conv_word_to_indexed_txt(txt_vec)
+
+    topic_map = {unique_topics[i]:i for i in range(len(unique_topics))}
+    clean_df.loc[:, "class"] = clean_df["variety"].apply(lambda row: topic_map[row])
+    label_list = clean_df.loc[:, "class"].tolist()
 
     num_topic = len(unique_topics)
     num_vocab = len(vocab_dict)
@@ -62,15 +70,24 @@ def main():
 
     # create object of LDA class
     # orig_lda = origLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
-    orig_lda = vaniLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
+    orig_lda = supervisedLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
 
-    svi = pyro.infer.SVI(
-        model=orig_lda.model,
-        guide=orig_lda.guide,
-        optim=Adam({"lr": ADAM_LEARN_RATE}),
-        loss=orig_lda.loss)
+    if isinstance(orig_lda, vaeLDA):
+        predictor = orig_lda.make_predictor(neural_args)
+        guide = functools.partial(orig_lda.parametrized_guide, predictor, vocab_count)
+        svi = pyro.infer.SVI(
+            model=orig_lda.model,
+            guide=guide,
+            optim=Adam({"lr": ADAM_LEARN_RATE}),
+            loss=orig_lda.loss)
+    else:
+        svi = pyro.infer.SVI(
+            model=orig_lda.model,
+            guide=orig_lda.guide,
+            optim=Adam({"lr": ADAM_LEARN_RATE}),
+            loss=orig_lda.loss)
 
-    args = (indexed_txt_list,)
+    args = (indexed_txt_list, label_list, )
 
     losses, alpha, beta = [], [], []
     num_step = 100
@@ -97,5 +114,11 @@ def main():
         print([word[0] for word in vocab[non_trivial_words_ix]])
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Amortized Latent Dirichlet Allocation")
 
-    main()
+    parser.add_argument("-n", "--num-steps", default=1000, type=int)
+    parser.add_argument("-l", "--layer-sizes", default="128-128")
+    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
+    parser.add_argument('--jit', action='store_true')
+    args = parser.parse_args()
+    main(args)
