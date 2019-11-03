@@ -43,7 +43,6 @@ class plainLDA:
         # returns t x w matrix
         with pyro.plate("topics", self.num_topics):
             phi = pyro.sample("phi", dist.Dirichlet(beta_0))
-            #assert phi.shape == (self.num_topics, self.num_vocabs)
 
             # alpha => prior for the per-document topic distribution
             alpha_0 = torch.ones(self.num_topics) / self.num_topics

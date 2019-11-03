@@ -17,6 +17,7 @@ from scipy import sparse
 
 stop_n_punct_words = set(stopwords.words("english") + list(string.punctuation))
 
+
 def fetch_dataset():
     """ fetch data from disk and return a dataframe """
     data_root_dir = os.path.join(".", "data")
@@ -55,9 +56,10 @@ def filter_by_topic(tmp_df, keep_top_n_topics=0, min_count_threshold=0):
 
 def clean_stop_punct_digit_n_lower(txt):
 
-    token = word_tokenize(txt)
+    token = txt.split(" ")
     clean_token = [word.lower() for word in token if word.lower()
-                   not in stop_n_punct_words and not word.isdigit()]
+                   not in stop_n_punct_words and re.match("^\d+?\.\d+?$", word) is None
+                   and len(word) >= 3 and "\'" not in word]
 
     return " ".join(clean_token)
 
@@ -79,7 +81,7 @@ def conv_word_to_indexed_txt(txt_vec):
 
     # transform words into integer indexes, comes out as n x m
     # where n = # txt doc, m = # unique words for whole universe
-    vectorizer = CountVectorizer(stop_words='english')
+    vectorizer = CountVectorizer()
     sparse_count_vec = vectorizer.fit_transform(txt_vec)
 
     # create n x p list of words represented by ints,  where p = # words in each documentx
@@ -109,6 +111,5 @@ def conv_word_to_indexed_txt(txt_vec):
     print("Converted words to indexes of integers.")
 
     vocab_count = sparse_count_vec.data
-
 
     return indexed_txt_list, vocab_dict, vocab_count

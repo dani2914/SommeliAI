@@ -53,7 +53,7 @@ class vaeLDA:
                                        obs=doc)
                 doc_words.append(words)
 
-        return topic_weights, doc_words
+        return doc_words, topic_x_words
 
     # We will use amortized inference of the local topic variables, achieved by a
     # multi-layer perceptron. We'll wrap the guide in an nn.Module.
