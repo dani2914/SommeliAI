@@ -43,7 +43,7 @@ class vaeLDA:
 
         doc_words = []
         # Locals
-        for i in pyro.plate("documents", self.num_docs):
+        for i in pyro.plate("documents", self.num_docs, subsample_size=self.subsample_size):
             doc = data[i]
             doc_x_topics = pyro.sample("doc_topics_{}".format(i), dist.Dirichlet(topic_weights))
             with pyro.plate("words_{}".format(i), self.num_words_per_doc_vec[i]):

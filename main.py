@@ -8,7 +8,6 @@ import numpy as np
 import torch
 import pyro
 from pyro.optim import Adam
-from pyro.infer import TraceEnum_ELBO
 
 from models import (
     plainLDA,
@@ -27,7 +26,7 @@ def main(neural_args):
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 1000#use None if want to use full dataset
+    TESTING_SUBSIZE = 100000 #use None if want to use full dataset
     SUBSAMPLE_SIZE = 50
 #    USE_CUDA = True
 
@@ -79,8 +78,10 @@ def main(neural_args):
 
     args = (indexed_txt_list, )
     orig_lda = plainLDA(num_txt, num_words_per_txt,
-                        num_topic, num_vocab, SUBSAMPLE_SIZE)
-    #orig_lda = vaniLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
+                         num_topic, num_vocab, SUBSAMPLE_SIZE)
+    #orig_lda = vaeLDA(num_txt, num_words_per_txt,
+     #                    num_topic, num_vocab, SUBSAMPLE_SIZE)
+    # orig_lda = plainLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
 
     if isinstance(orig_lda, vaeLDA):
         predictor = orig_lda.make_predictor(neural_args)
@@ -103,7 +104,7 @@ def main(neural_args):
         if isinstance(orig_lda, plainLDA):
            alpha.append(pyro.param("alpha_q"))
            beta.append(pyro.param("beta_q"))
-        if step % 100 == 0:
+        if step % 10 == 0:
             print("{}: {}".format(step, np.round(loss, 1)))
     # evaluate results
     dtype = [("word", "<U17"), ("index", int)]
@@ -114,7 +115,7 @@ def main(neural_args):
             orig_lda.model(*args)
 
     for i in range(num_topic):
-        non_trivial_words_ix = np.argsort(posterior_topics_x_words[i])[:, -20:]
+        non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.01)[0]
         print("topic %s" % i)
         print([word[0] for word in vocab[non_trivial_words_ix]])
 
