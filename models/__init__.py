@@ -1,4 +1,4 @@
-from .lda import origLDA
+from .plainlda import plainLDA
 from .vanilda import vaniLDA
 from .vaelda import vaeLDA
 from .supervisedlda import supervisedLDA
