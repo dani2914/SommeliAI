@@ -27,7 +27,7 @@ def main(neural_args):
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 100#use None if want to use full dataset
+    TESTING_SUBSIZE = 1000#use None if want to use full dataset
     SUBSAMPLE_SIZE = 50
 #    USE_CUDA = True
 
@@ -85,17 +85,15 @@ def main(neural_args):
     if isinstance(orig_lda, vaeLDA):
         predictor = orig_lda.make_predictor(neural_args)
         guide = functools.partial(orig_lda.parametrized_guide, predictor, vocab_count)
-        svi = pyro.infer.SVI(
-            model=orig_lda.model,
-            guide=guide,
-            optim=Adam({"lr": ADAM_LEARN_RATE}),
-            loss=orig_lda.loss)
+
     else:
-        svi = pyro.infer.SVI(
-            model=orig_lda.model,
-            guide=orig_lda.guide,
-            optim=Adam({"lr": ADAM_LEARN_RATE}),
-            loss=orig_lda.loss)
+        guide = orig_lda.guide
+
+    svi = pyro.infer.SVI(
+        model=orig_lda.model,
+        guide=guide,
+        optim=Adam({"lr": ADAM_LEARN_RATE}),
+        loss=orig_lda.loss)
 
     losses, alpha, beta = [], [], []
     num_step = 1000
@@ -107,7 +105,6 @@ def main(neural_args):
            beta.append(pyro.param("beta_q"))
         if step % 100 == 0:
             print("{}: {}".format(step, np.round(loss, 1)))
-
     # evaluate results
     dtype = [("word", "<U17"), ("index", int)]
     vocab = np.array([item for item in vocab_dict.items()], dtype=dtype)
@@ -117,7 +114,7 @@ def main(neural_args):
             orig_lda.model(*args)
 
     for i in range(num_topic):
-        non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.01)[0]
+        non_trivial_words_ix = np.argsort(posterior_topics_x_words[i])[:, -20:]
         print("topic %s" % i)
         print([word[0] for word in vocab[non_trivial_words_ix]])
 
