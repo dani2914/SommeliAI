@@ -99,7 +99,7 @@ def main():
 
     topic_vec = clean_df["variety"]
     unique_topics = np.unique(topic_vec)
-    topic_map = {unique_topics[i]:i for i in range(len(unique_topics))}
+    topic_map = {unique_topics[i]: i for i in range(len(unique_topics))}
 
     clean_df.loc[:, "class"] = clean_df["variety"].apply(lambda row: topic_map[row])
 

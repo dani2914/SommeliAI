@@ -79,7 +79,7 @@ def conv_word_to_indexed_txt(txt_vec):
 
     # transform words into integer indexes, comes out as n x m
     # where n = # txt doc, m = # unique words for whole universe
-    vectorizer = CountVectorizer()
+    vectorizer = CountVectorizer(stop_words='english')
     sparse_count_vec = vectorizer.fit_transform(txt_vec)
 
     # create n x p list of words represented by ints,  where p = # words in each documentx

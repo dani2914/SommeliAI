@@ -28,7 +28,7 @@ def main(neural_args):
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
     TESTING_SUBSIZE = 100#use None if want to use full dataset
-    SUBSAMPLE_SIZE = 5
+    SUBSAMPLE_SIZE = 50
 #    USE_CUDA = True
 
 #    if USE_CUDA:
@@ -75,7 +75,12 @@ def main(neural_args):
 
     # create object of LDA class
     # orig_lda = origLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
-    orig_lda = supervisedLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
+    # orig_lda = vaeLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
+
+    args = (indexed_txt_list, )
+    orig_lda = plainLDA(num_txt, num_words_per_txt,
+                        num_topic, num_vocab, SUBSAMPLE_SIZE)
+    #orig_lda = vaniLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
 
     if isinstance(orig_lda, vaeLDA):
         predictor = orig_lda.make_predictor(neural_args)
@@ -92,20 +97,14 @@ def main(neural_args):
             optim=Adam({"lr": ADAM_LEARN_RATE}),
             loss=orig_lda.loss)
 
-    args = (indexed_txt_list, label_list, )
-    orig_lda = vaeLDA(num_txt, num_words_per_txt,
-                        num_topic, num_vocab, SUBSAMPLE_SIZE)
-    #orig_lda = vaniLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
-
-
     losses, alpha, beta = [], [], []
     num_step = 1000
     for step in range(num_step):
         loss = svi.step(*args)
         losses.append(loss)
         if isinstance(orig_lda, plainLDA):
-            alpha.append(pyro.param("alpha_q"))
-            beta.append(pyro.param("beta_q"))
+           alpha.append(pyro.param("alpha_q"))
+           beta.append(pyro.param("beta_q"))
         if step % 100 == 0:
             print("{}: {}".format(step, np.round(loss, 1)))
 
@@ -121,6 +120,7 @@ def main(neural_args):
         non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.01)[0]
         print("topic %s" % i)
         print([word[0] for word in vocab[non_trivial_words_ix]])
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Amortized Latent Dirichlet Allocation")
