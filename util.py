@@ -17,7 +17,6 @@ from scipy import sparse
 
 stop_n_punct_words = set(stopwords.words("english") + list(string.punctuation))
 
-
 def fetch_dataset():
     """ fetch data from disk and return a dataframe """
     data_root_dir = os.path.join(".", "data")
@@ -96,7 +95,7 @@ def conv_word_to_indexed_txt(txt_vec):
     y_vec = torch.tensor(y_vec, dtype=torch.float)
 
     # sort the vecs
-    sort_ix = np.argsort(x_vec)
+    sort_ix = torch.argsort(x_vec)
     x_vec = x_vec[sort_ix]
     y_vec = y_vec[sort_ix]
 

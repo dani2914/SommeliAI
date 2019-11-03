@@ -9,13 +9,13 @@ from pyro.optim import Adam
 from pyro.infer import TraceEnum_ELBO
 
 from models import (
-    origLDA,
+    plainLDA,
     vaniLDA,
 )
 
-pyro.set_rng_seed(0)
-pyro.clear_param_store()
-pyro.enable_validation(True)
+#pyro.set_rng_seed(0)
+#pyro.clear_param_store()
+#pyro.enable_validation(False)
 
 
 def main():
@@ -23,12 +23,17 @@ def main():
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 1000 #use None if want to use full dataset
+    TESTING_SUBSIZE = 100#use None if want to use full dataset
+    SUBSAMPLE_SIZE = 5
+#    USE_CUDA = True
+
+#    if USE_CUDA:
+#        torch.set_default_tensor_type("torch.cuda.FloatTensor")
 
     full_df = util.fetch_dataset()
 
     # keep topics with the highest number of txt, and add min threshold if want
-    full_df = util.filter_by_topic(full_df, keep_top_n_topics=100)
+    full_df = util.filter_by_topic(full_df, keep_top_n_topics=10)
 
     # if not none, then subset the dataframe for testing purposes
     if(TESTING_SUBSIZE is not None):
@@ -61,8 +66,9 @@ def main():
 #    num_words_per_txt = [len(txt) for txt in indexed_txt_list]
 
     # create object of LDA class
-    # orig_lda = origLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
-    orig_lda = vaniLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
+    orig_lda = plainLDA(num_txt, num_words_per_txt,
+                        num_topic, num_vocab, SUBSAMPLE_SIZE)
+    #orig_lda = vaniLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
 
     svi = pyro.infer.SVI(
         model=orig_lda.model,
@@ -73,14 +79,14 @@ def main():
     args = (indexed_txt_list,)
 
     losses, alpha, beta = [], [], []
-    num_step = 100
+    num_step = 1000
     for step in range(num_step):
         loss = svi.step(*args)
         losses.append(loss)
-        if isinstance(orig_lda, origLDA):
+        if isinstance(orig_lda, plainLDA):
             alpha.append(pyro.param("alpha_q"))
             beta.append(pyro.param("beta_q"))
-        if step % 10 == 0:
+        if step % 100 == 0:
             print("{}: {}".format(step, np.round(loss, 1)))
 
     # evaluate results

@@ -1,7 +1,7 @@
-from .lda import origLDA
+from .plainlda import plainLDA
 from .vanilda import vaniLDA
 
 __all__ = [
-    "origLDA",
+    "plainLDA",
     "vaniLDA"
 ]
