@@ -12,11 +12,12 @@ from torch.distributions import constraints
 
 import pyro
 import pyro.distributions as dist
-from pyro.infer import SVI, JitTraceEnum_ELBO, TraceEnum_ELBO
+
+from pyro.infer import SVI, TraceGraph_ELBO
 from pyro.optim import ClippedAdam
 
 class supervisedLDA():
-    def __init__(self, num_docs, num_words_per_doc_vec, num_topics, num_vocabs):
+    def __init__(self, num_docs, num_words_per_doc_vec, num_topics, num_vocabs, subsample_size):
         pyro.set_rng_seed(0)
         pyro.clear_param_store()
         pyro.enable_validation(True)
@@ -25,10 +26,11 @@ class supervisedLDA():
         self.num_words_per_doc_vec = num_words_per_doc_vec
         self.num_topics = num_topics
         self.num_vocabs = num_vocabs
+        self.num_subsample = subsample_size
 
     @property
     def loss(self):
-        return TraceEnum_ELBO(max_plate_nesting=2)
+        return TraceGraph_ELBO(max_plate_nesting=2)
 
     def model(self, data=None, label=None):
         # Globals.
@@ -43,7 +45,7 @@ class supervisedLDA():
             label_topics = pyro.sample("theta",
                                       dist.Dirichlet(torch.ones(self.num_topics) / self.num_topics))
 
-        for i in pyro.plate("documents", self.num_docs):
+        for i in pyro.plate("documents", self.num_docs, subsample_size=self.num_subsample):
             words = data[i]
             doc_topics = label_topics[label[i]]
             with pyro.plate("words_{}".format(i), self.num_words_per_doc_vec[i]):
@@ -54,12 +56,8 @@ class supervisedLDA():
 
             doc_x_words.append(words)
 
+        return doc_x_words, topic_words
 
-        return topic_words, doc_x_words
-
-
-    # We will use amortized inference of the local topic variables, achieved by a
-    # multi-layer perceptron. We'll wrap the guide in an nn.Module.
     def make_predictor(num_words, num_topics, args):
         layer_sizes = ([num_words] +
                        [int(s) for s in args.layer_sizes.split('-')] +
@@ -75,7 +73,6 @@ class supervisedLDA():
         layers.append(nn.Softmax(dim=-1))
         return nn.Sequential(*layers)
 
-
     def guide(self, data=None, label=None):
         # beta_q => q for the per-topic word distribution
         beta_q = pyro.param("beta_q", torch.ones(self.num_vocabs), constraint=constraints.positive)
@@ -85,4 +82,11 @@ class supervisedLDA():
             pyro.sample("beta", dist.Dirichlet(beta_q))
 
         with pyro.plate("labels", self.num_topics):
-            pyro.sample("theta", dist.Dirichlet(eta_q))
+            label_topics = pyro.sample("theta", dist.Dirichlet(eta_q))
+
+        for i in pyro.plate("documents", self.num_docs, subsample_size=self.num_subsample):
+            doc_topics = label_topics[label[i]]
+
+            with pyro.plate("words_{}".format(i), self.num_words_per_doc_vec[i]):
+                word_topics = pyro.sample("z_{}".format(i), dist.Categorical(doc_topics))
+

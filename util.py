@@ -59,7 +59,7 @@ def clean_stop_punct_digit_n_lower(txt):
     token = txt.split(" ")
     clean_token = [word.lower() for word in token if word.lower()
                    not in stop_n_punct_words and re.match("^\d+?\.\d+?$", word) is None
-                   and len(word) >= 3 and "\'" not in word]
+                   and len(word) >= 3 and "\'" not in word and not word.isnumeric()]
 
     return " ".join(clean_token)
 

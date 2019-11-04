@@ -26,12 +26,12 @@ def main(neural_args):
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 100000 #use None if want to use full dataset
+    TESTING_SUBSIZE = 1000 #use None if want to use full dataset
     SUBSAMPLE_SIZE = 50
-#    USE_CUDA = True
+    USE_CUDA = True
 
-#    if USE_CUDA:
-#        torch.set_default_tensor_type("torch.cuda.FloatTensor")
+    # if USE_CUDA:
+    #     torch.set_default_tensor_type("torch.cuda.FloatTensor")
 
     full_df = util.fetch_dataset()
 
@@ -74,13 +74,13 @@ def main(neural_args):
 
     # create object of LDA class
     # orig_lda = origLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
-    # orig_lda = vaeLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
+    # orig_lda = vaeLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
 
-    args = (indexed_txt_list, )
-    orig_lda = plainLDA(num_txt, num_words_per_txt,
-                         num_topic, num_vocab, SUBSAMPLE_SIZE)
-    #orig_lda = vaeLDA(num_txt, num_words_per_txt,
+    args = (indexed_txt_list, label_list, )
+    #orig_lda = plainLDA(num_txt, num_words_per_txt,
      #                    num_topic, num_vocab, SUBSAMPLE_SIZE)
+    orig_lda = supervisedLDA(num_txt, num_words_per_txt,
+                        num_topic, num_vocab, SUBSAMPLE_SIZE)
     # orig_lda = plainLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
 
     if isinstance(orig_lda, vaeLDA):
@@ -113,6 +113,7 @@ def main(neural_args):
 
     posterior_doc_x_words, posterior_topics_x_words = \
             orig_lda.model(*args)
+    posterior_topics_x_words = posterior_topics_x_words.cpu()
 
     for i in range(num_topic):
         non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.01)[0]
