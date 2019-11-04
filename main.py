@@ -117,10 +117,15 @@ def main(neural_args):
     #        orig_lda.model(*args)
     posterior_topics_x_words = posterior_topics_x_words.cpu()
 
+#    for i in range(num_topic):
+#        non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.005)[0]
+#        print("topic %s" % i)
+#        print([word[0] for word in vocab[non_trivial_words_ix]])
+
     for i in range(num_topic):
-        non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.01)[0]
+        sorted_words_ix = torch.argsort(posterior_topics_x_words[i])
         print("topic %s" % i)
-        print([word[0] for word in vocab[non_trivial_words_ix]])
+        print([word[0] for word in vocab[sorted_words_ix][0:10]])
 
 
 if __name__ == "__main__":
