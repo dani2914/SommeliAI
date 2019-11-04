@@ -101,7 +101,7 @@ def conv_word_to_indexed_txt(txt_vec):
     x_vec = x_vec[sort_ix]
     y_vec = y_vec[sort_ix]
 
-    x_vec_bincount = torch.bincount(x_vec)
+    x_vec_bincount = torch.bincount(x_vec.cpu())
     bincount_tup = tuple(int(bincount) for bincount in x_vec_bincount)
     indexed_txt_list = list(torch.split(y_vec, bincount_tup))
 

@@ -111,8 +111,10 @@ def main(neural_args):
     vocab = np.array([item for item in vocab_dict.items()], dtype=dtype)
     vocab = np.sort(vocab, order="index")
 
-    posterior_doc_x_words, posterior_topics_x_words = \
-            orig_lda.model(*args)
+    posterior_topics_x_words = dist.Dirichlet(pyro.param("beta_q")).sample()
+
+    #posterior_doc_x_words, posterior_topics_x_words = \
+    #        orig_lda.model(*args)
     posterior_topics_x_words = posterior_topics_x_words.cpu()
 
     for i in range(num_topic):
