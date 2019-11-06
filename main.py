@@ -8,6 +8,8 @@ import numpy as np
 import torch
 import pyro
 from pyro.optim import Adam
+import pyro.distributions as dist
+from pyro.infer import EmpiricalMarginal, SVI, Trace_ELBO, TracePredictive
 
 from models import (
     plainLDA,
@@ -74,14 +76,18 @@ def main(neural_args):
 
     # create object of LDA class
     # orig_lda = origLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
-    # orig_lda = vaeLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
+    orig_lda = vaeLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
 
-    args = (indexed_txt_list, label_list, )
     #orig_lda = plainLDA(num_txt, num_words_per_txt,
      #                    num_topic, num_vocab, SUBSAMPLE_SIZE)
-    orig_lda = supervisedLDA(num_txt, num_words_per_txt,
-                        num_topic, num_vocab, SUBSAMPLE_SIZE)
-    # orig_lda = plainLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
+    # orig_lda = supervisedLDA(num_txt, num_words_per_txt,
+    #                     num_topic, num_vocab, SUBSAMPLE_SIZE)
+    #orig_lda = plainLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
+
+    if isinstance(orig_lda, supervisedLDA):
+        args = (indexed_txt_list, label_list)
+    else:
+        args = (indexed_txt_list,)
 
     if isinstance(orig_lda, vaeLDA):
         predictor = orig_lda.make_predictor(neural_args)
@@ -111,11 +117,22 @@ def main(neural_args):
     vocab = np.array([item for item in vocab_dict.items()], dtype=dtype)
     vocab = np.sort(vocab, order="index")
 
-    posterior_topics_x_words = dist.Dirichlet(pyro.param("beta_q")).sample()
+    # posterior_topics_x_words = dist.Dirichlet(pyro.param("phi")).sample()
 
     #posterior_doc_x_words, posterior_topics_x_words = \
     #        orig_lda.model(*args)
-    posterior_topics_x_words = posterior_topics_x_words.cpu()
+    # posterior_topics_x_words = posterior_topics_x_words.cpu()
+
+    preds = []
+
+    for i in range(1000):
+        if isinstance(orig_lda, supervisedLDA):
+            pred = guide(indexed_txt_list, label_list).data.numpy()
+        else:
+            pred = guide(indexed_txt_list).data.numpy()
+        preds.append(pred)
+
+    posterior_topics_x_words = np.stack(preds).mean(0)
 
 #    for i in range(num_topic):
 #        non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.005)[0]
@@ -123,7 +140,7 @@ def main(neural_args):
 #        print([word[0] for word in vocab[non_trivial_words_ix]])
 
     for i in range(num_topic):
-        sorted_words_ix = torch.argsort(posterior_topics_x_words[i])
+        sorted_words_ix = np.argsort(posterior_topics_x_words[i])
         print("topic %s" % i)
         print([word[0] for word in vocab[sorted_words_ix][0:10]])
 

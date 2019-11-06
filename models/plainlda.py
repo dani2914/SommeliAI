@@ -70,11 +70,11 @@ class plainLDA:
         """pyro guide for lda inference"""
 
         # beta_q => q for the per-topic word distribution
-        beta_q = pyro.param("beta_q", torch.ones(self.num_topics, self.num_vocabs),
+        beta_q = pyro.param("beta_q", torch.ones(self.num_vocabs),
                             constraint=constraints.positive)
 
         with pyro.plate("topics", self.num_topics):
-            pyro.sample("phi", dist.Dirichlet(beta_q))
+            topic_words = pyro.sample("phi", dist.Dirichlet(beta_q))
 
             # alpha_q => q for the per-document topic distribution
             alpha_q = pyro.param("alpha_q", torch.ones(self.num_topics),
@@ -87,3 +87,5 @@ class plainLDA:
             with pyro.plate(f"words_{i}", self.num_words_per_doc_vec[i]):
                 z_assignment = pyro.sample(f"z_assignment_{i}",
                                             dist.Categorical(theta))
+
+        return topic_words

@@ -84,7 +84,7 @@ class vaeLDA:
                 constraint=constraints.positive)
         with pyro.plate("topics", self.num_topics):
             pyro.sample("topic_weights", dist.Gamma(topic_weights_posterior, 1.))
-            pyro.sample("topic_words", dist.Dirichlet(topic_words_posterior))
+            topic_words = pyro.sample("topic_words", dist.Dirichlet(topic_words_posterior))
 
         pyro.module("predictor", predictor)
         count_words = 0
@@ -99,3 +99,5 @@ class vaeLDA:
             doc_topics = predictor(counts)
             pyro.sample("doc_topics_{}".format(i), dist.Delta(doc_topics, event_dim=1))
             count_words += len(words)
+
+        return topic_words

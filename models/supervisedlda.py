@@ -16,6 +16,7 @@ import pyro.distributions as dist
 from pyro.infer import SVI, TraceGraph_ELBO
 from pyro.optim import ClippedAdam
 
+
 class supervisedLDA():
     def __init__(self, num_docs, num_words_per_doc_vec, num_topics, num_vocabs, subsample_size):
         pyro.set_rng_seed(0)
@@ -79,7 +80,7 @@ class supervisedLDA():
         eta_q = pyro.param("eta_q", torch.ones(self.num_topics), constraint=constraints.positive)
 
         with pyro.plate("topics", self.num_topics):
-            pyro.sample("beta", dist.Dirichlet(beta_q))
+            topic_words = pyro.sample("beta", dist.Dirichlet(beta_q))
 
         with pyro.plate("labels", self.num_topics):
             label_topics = pyro.sample("theta", dist.Dirichlet(eta_q))
@@ -90,3 +91,4 @@ class supervisedLDA():
             with pyro.plate("words_{}".format(i), self.num_words_per_doc_vec[i]):
                 word_topics = pyro.sample("z_{}".format(i), dist.Categorical(doc_topics))
 
+        return topic_words
