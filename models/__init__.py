@@ -4,7 +4,7 @@ from .vaelda import vaeLDA
 from .supervisedlda import supervisedLDA
 
 __all__ = [
-    "origLDA",
+    "plainLDA",
     "vaniLDA",
     "vaeLDA",
     "supervisedLDA"
