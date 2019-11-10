@@ -1,0 +1,32 @@
+Title: SommeliAI -- Wine Tasting with Latent Dirichlet Allocation
+
+Background
+Wine reviewers often use opaque language entwined with colorful vocabulary to describe tastings, which makes hard classifications based on semantic description impractical; we hope to use mixture models, more specifically LDA and its hierarchical and supervised variants, to infer wine varieties (ex. Pinot Grigio) and predict ratings with natural language based reviews.
+
+Subtitle: Latent Dirichlet Allocation
+- show plate notation
+- show math?
+
+Subtitle: Data
+- explain dataset
+- show graph of document id (x) vs. document word count (y)
+  - or histogram with document word count(x) vs. # of docs (y)
+- show example wine review corpus
+
+Subtitle: Simple LDA run with standard procedure for stop words etc
+- model
+  - short blurb 
+- inference
+  - short blurb
+- criticism
+  - show clusters of words ("word cloud") where topic clusters are similar
+  - show classification results for each corpus
+
+Subtitle: LDA run removing top common word speciic to our corpus
+- criticism
+  - show clusters of words (hopefully better)
+  - show classification results for each corpus
+  - show wine review corpus example with word highlighted by topic
+
+
+
