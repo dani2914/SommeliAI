@@ -28,7 +28,7 @@ def main(neural_args):
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 1000 #use None if want to use full dataset
+    TESTING_SUBSIZE = None #use None if want to use full dataset
     SUBSAMPLE_SIZE = 50
     USE_CUDA = True
 
@@ -56,7 +56,7 @@ def main(neural_args):
 
     topic_map = {unique_topics[i]:i for i in range(len(unique_topics))}
     clean_df.loc[:, "class"] = clean_df["variety"].apply(lambda row: topic_map[row])
-    label_list = clean_df.loc[:, "class"].tolist()
+    label_list = score_vec.tolist()
 
     num_topic = len(unique_topics)
     num_vocab = len(vocab_dict)
@@ -76,12 +76,12 @@ def main(neural_args):
 
     # create object of LDA class
     # orig_lda = origLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
-    orig_lda = vaeLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
+    # orig_lda = vaeLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
 
-    #orig_lda = plainLDA(num_txt, num_words_per_txt,
-     #                    num_topic, num_vocab, SUBSAMPLE_SIZE)
-    # orig_lda = supervisedLDA(num_txt, num_words_per_txt,
-    #                     num_topic, num_vocab, SUBSAMPLE_SIZE)
+    # orig_lda = plainLDA(num_txt, num_words_per_txt,
+    #                      num_topic, num_vocab, SUBSAMPLE_SIZE)
+    orig_lda = supervisedLDA(num_txt, num_words_per_txt,
+                          num_topic, num_vocab, SUBSAMPLE_SIZE)
     #orig_lda = plainLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
 
     if isinstance(orig_lda, supervisedLDA):
@@ -92,7 +92,6 @@ def main(neural_args):
     if isinstance(orig_lda, vaeLDA):
         predictor = orig_lda.make_predictor(neural_args)
         guide = functools.partial(orig_lda.parametrized_guide, predictor, vocab_count)
-
     else:
         guide = orig_lda.guide
 
@@ -142,7 +141,7 @@ def main(neural_args):
     for i in range(num_topic):
         sorted_words_ix = np.argsort(posterior_topics_x_words[i])
         print("topic %s" % i)
-        print([word[0] for word in vocab[sorted_words_ix][0:10]])
+        print([word[0] for word in vocab[sorted_words_ix][-10:]])
 
 
 if __name__ == "__main__":

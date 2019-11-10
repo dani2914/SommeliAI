@@ -10,6 +10,7 @@ import torch
 import re
 import string
 
+from customised_stopword import customised_stopword
 from nltk.corpus import stopwords
 from nltk import word_tokenize
 
@@ -36,6 +37,7 @@ def fetch_dataset():
     print("Dataset fetched.")
     return full_df
 
+
 def filter_by_topic(tmp_df, keep_top_n_topics=0, min_count_threshold=0):
     """ filter based on topic information """
 
@@ -54,14 +56,24 @@ def filter_by_topic(tmp_df, keep_top_n_topics=0, min_count_threshold=0):
     return tmp_df
 
 
+def remove_duplicate(txt):
+    from collections import defaultdict
+    word_count = defaultdict(int)
+    words = txt.split(" ")
+    for word in words:
+        word_count[word] += 1
+
+    return " ".join(word_count.keys())
+
+
 def clean_stop_punct_digit_n_lower(txt):
 
     txt = re.sub(r"[\'\.,-?!]", " ", txt)
     token = txt.split(" ")
 
     clean_token = [word.lower() for word in token if word.lower()
-                   not in stop_n_punct_words and re.match(r"^\d+?\.\d+?$", word) is None
-                   and len(word) >= 3 and "\'" not in word and not word.isnumeric()]
+                   not in stop_n_punct_words and re.match("^.*\d+.*$", word) is None
+                   and len(word) >= 4 and "\'" not in word and not word.isnumeric()]
 
     return " ".join(clean_token)
 
@@ -73,8 +85,11 @@ def preprocess(tmp_df, preprocess=False):
     if preprocess:
         tmp_df["description"] = tmp_df["description"].apply(
             clean_stop_punct_digit_n_lower)
+    # words = tmp_df['description'].str.split(expand=True).stack().value_counts()
+    # ratio = tmp_df['description'].apply(remove_duplicate).str.split(expand=True).stack().value_counts() / tmp_df.shape[0]
+    # words.to_csv('freq_words.csv')
+    # ratio.to_csv("ratio.csv")
 
-    print("Dataset cleaned.")
     return tmp_df
 
 
@@ -83,7 +98,7 @@ def conv_word_to_indexed_txt(txt_vec):
 
     # transform words into integer indexes, comes out as n x m
     # where n = # txt doc, m = # unique words for whole universe
-    vectorizer = CountVectorizer()
+    vectorizer = CountVectorizer(stop_words=customised_stopword, analyzer='word')
     sparse_count_vec = vectorizer.fit_transform(txt_vec)
 
     # create n x p list of words represented by ints,  where p = # words in each documentx
@@ -107,7 +122,7 @@ def conv_word_to_indexed_txt(txt_vec):
     bincount_tup = tuple(int(bincount) for bincount in x_vec_bincount)
     indexed_txt_list = list(torch.split(y_vec, bincount_tup))
 
-    # the dictionary key to match each int to the original word
+    # the dictionary key to match each word to int
     vocab_dict = vectorizer.vocabulary_
 
     print("Converted words to indexes of integers.")
@@ -115,6 +130,7 @@ def conv_word_to_indexed_txt(txt_vec):
     vocab_count = sparse_count_vec.data
 
     return indexed_txt_list, vocab_dict, vocab_count
+
 
 def generate_hierarchical_mapping(data, hierarchy):
     mapping = {}
@@ -133,6 +149,7 @@ def generate_hierarchical_mapping(data, hierarchy):
     
     return mapping
 
+
 def enrich_data_hierarchical_coordinates(data, hierarchy, mapping):
     data = data.set_index(hierarchy).sort_index()
     depth = len(hierarchy)
@@ -150,6 +167,7 @@ def enrich_data_hierarchical_coordinates(data, hierarchy, mapping):
 
     return data.reset_index()
 
+
 def simplify_topic_hierarchy(tree):
     out = []
 
@@ -163,6 +181,7 @@ def simplify_topic_hierarchy(tree):
     nlabels = tree_names_to_nested_list(tree, out, 0)
     return out, nlabels
 
+
 def flatten(nested_list):
     acc = []
     for ii in nested_list:
@@ -171,6 +190,7 @@ def flatten(nested_list):
         else:
             acc += [ii]
     return acc
+
 
 def get_all_supervised_requirements(fname=None, max_samples=0, max_annotations=500, max_classes=15):
     if fname is not None:
@@ -243,3 +263,4 @@ def get_all_supervised_requirements(fname=None, max_samples=0, max_annotations=5
         docs_counts[e, :len(d)] = d
 
     return clean_df, docs_words, docs_counts, num_topics, num_vocab, min_acceptable_words
+
