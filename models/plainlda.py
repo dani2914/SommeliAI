@@ -18,18 +18,18 @@ from pyro.optim import ClippedAdam
 
 class plainLDA:
 
-    def __init__(self, num_docs, num_words_per_doc_vec,
+    def __init__(self, num_docs, num_words_per_doc,
                  num_topics, num_vocabs, num_subsample):
         # pyro settings
         pyro.set_rng_seed(0)
         pyro.clear_param_store()
         pyro.enable_validation(False)
 
-        self.num_docs = num_docs
-        self.num_words_per_doc_vec = num_words_per_doc_vec
-        self.num_topics = num_topics
-        self.num_vocabs = num_vocabs
-        self.num_subsample = num_subsample
+        self.D = num_docs
+        self.N = num_words_per_doc
+        self.K = num_topics
+        self.V = num_vocabs
+        self.S = num_subsample
 
     @property
     def loss(self):
@@ -37,55 +37,62 @@ class plainLDA:
 
     def model(self, doc_list=None):
         """pyro model for lda"""
-        # beta => prior for the per-topic word distributions
-        beta_0 = torch.ones(self.num_vocabs) / self.num_vocabs
+        # eta => prior for the per-topic word distributions
+        eta = torch.ones(self.V) / self.V
 
-        # returns t x w matrix
-        with pyro.plate("topics", self.num_topics):
-            phi = pyro.sample("phi", dist.Dirichlet(beta_0))
+        # returns topic x vocab matrix
+        with pyro.plate("topics", self.K):
+            # beta => per topic word vec
+            beta = pyro.sample("beta", dist.Dirichlet(eta))
 
-            # alpha => prior for the per-document topic distribution
-            alpha_0 = torch.ones(self.num_topics) / self.num_topics
+        # alpha => prior for the per-doc topic vector
+        alpha = torch.ones(self.K) / self.K
 
-        # returns d x t matrix
-        Theta = []
-        for i in pyro.plate("documents", self.num_docs, subsample_size=self.num_subsample):
+        X, Theta = [], []
+        for d in pyro.plate("documents", self.D, subsample_size=self.S):
 
-            theta = pyro.sample(f"theta_{i}", dist.Dirichlet(alpha_0))
+            # theta => per-doc topic vector
+            theta = pyro.sample(f"theta_{d}", dist.Dirichlet(alpha))
 
-            data = None if doc_list is None else doc_list[i]
+            doc = None if doc_list is None else doc_list[d]
+            with pyro.plate(f"words_{d}", self.N[d]):
 
-            with pyro.plate(f"words_{i}", self.num_words_per_doc_vec[i]):
-                z_assignment = pyro.sample(f"z_assignment_{i}",
+                # assign a topic
+                z_assignment = pyro.sample(f"z_assignment_{d}",
                                             dist.Categorical(theta),
                                             infer={"enumerate": "parallel"})
+                # from that topic vec, select a word
+                w = pyro.sample(f"w_{d}", dist.Categorical(beta[z_assignment]), obs=doc)
 
-                w = pyro.sample(f"w_{i}", dist.Categorical(phi[z_assignment]), obs=data)
+            X.append(w)
+            Theta.append(theta)
+        return X, beta, Theta
 
-            Theta.append(w)
-
-        return Theta, phi
 
     def guide(self, doc_list=None):
         """pyro guide for lda inference"""
 
-        # beta_q => q for the per-topic word distribution
-        beta_q = pyro.param("beta_q", torch.ones(self.num_vocabs),
-                            constraint=constraints.positive)
+        with pyro.plate("topics", self.K):
+            # eta_q => q for the per-topic word distribution
+            eta_q = pyro.param("eta_q", torch.rand(self.V),
+                               constraint=constraints.positive)
+            # beta_q => posterior per topic word vec
+            beta_q = pyro.sample("beta", dist.Dirichlet(eta_q))
 
-        with pyro.plate("topics", self.num_topics):
-            topic_words = pyro.sample("phi", dist.Dirichlet(beta_q))
+        Theta_q = []
+        for d in pyro.plate("documents", self.D, subsample_size=self.S):
 
-            # alpha_q => q for the per-document topic distribution
-            alpha_q = pyro.param("alpha_q", torch.ones(self.num_topics),
+            # alpha_q => q for the per-doc topic vector
+            alpha_q = pyro.param(f"alpha_q_{d}", torch.rand(self.K),
                                  constraint=constraints.positive)
 
-        for i in pyro.plate("documents", self.num_docs,
-                            subsample_size=self.num_subsample):
-            theta = pyro.sample(f"theta_{i}", dist.Dirichlet(alpha_q))
+            # theta_q => posterior per-doc topic vector
+            theta_q = pyro.sample(f"theta_{d}", dist.Dirichlet(alpha_q))
 
-            with pyro.plate(f"words_{i}", self.num_words_per_doc_vec[i]):
-                z_assignment = pyro.sample(f"z_assignment_{i}",
-                                            dist.Categorical(theta))
+            with pyro.plate(f"words_{d}", self.N[d]):
+                # assign a topic
+                pyro.sample(f"z_assignment_{d}", dist.Categorical(theta_q))
 
-        return topic_words
+            Theta_q.append(theta_q)
+
+        return beta_q, Theta_q

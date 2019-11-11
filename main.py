@@ -54,9 +54,10 @@ def main(neural_args):
 
     indexed_txt_list, vocab_dict, vocab_count = util.conv_word_to_indexed_txt(txt_vec)
 
-    topic_map = {unique_topics[i]:i for i in range(len(unique_topics))}
+    topic_map = {unique_topics[i]: i + 1 for i in range(len(unique_topics))}
     clean_df.loc[:, "class"] = clean_df["variety"].apply(lambda row: topic_map[row])
     label_list = score_vec.tolist()
+    #label_list = clean_df["class"].tolist()
 
     num_topic = len(unique_topics)
     num_vocab = len(vocab_dict)
@@ -81,7 +82,7 @@ def main(neural_args):
     # orig_lda = plainLDA(num_txt, num_words_per_txt,
     #                      num_topic, num_vocab, SUBSAMPLE_SIZE)
     orig_lda = supervisedLDA(num_txt, num_words_per_txt,
-                          num_topic, num_vocab, SUBSAMPLE_SIZE)
+                           num_topic, num_vocab, SUBSAMPLE_SIZE)
     #orig_lda = plainLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
 
     if isinstance(orig_lda, supervisedLDA):

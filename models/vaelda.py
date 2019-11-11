@@ -36,10 +36,10 @@ class vaeLDA:
 
     def model(self, data=None):
         # Globals.
+        topic_weights = torch.ones(self.num_topics) / self.num_topics
+        vocab_weights = torch.ones(self.num_vocabs) / self.num_vocabs
         with pyro.plate("topics", self.num_topics):
-            topic_weights = pyro.sample("topic_weights", dist.Gamma(1. / self.num_topics, 1.))
-            topic_x_words = pyro.sample("topic_words",
-                                      dist.Dirichlet(torch.ones(self.num_vocabs) / self.num_vocabs))
+            topic_x_words = pyro.sample("topic_words", dist.Dirichlet(vocab_weights))
 
         doc_words = []
         # Locals
@@ -74,16 +74,11 @@ class vaeLDA:
         return nn.Sequential(*layers)
 
     def parametrized_guide(self, predictor, vocab_count, data=None):
-        topic_weights_posterior = pyro.param(
-                "topic_weights_posterior",
-                lambda: torch.ones(self.num_topics),
-                constraint=constraints.positive)
         topic_words_posterior = pyro.param(
                 "topic_words_posterior",
-                lambda: torch.ones(self.num_topics, self.num_vocabs),
+                lambda: torch.ones(self.num_vocabs),
                 constraint=constraints.positive)
         with pyro.plate("topics", self.num_topics):
-            pyro.sample("topic_weights", dist.Gamma(topic_weights_posterior, 1.))
             topic_words = pyro.sample("topic_words", dist.Dirichlet(topic_words_posterior))
 
         pyro.module("predictor", predictor)
@@ -97,7 +92,10 @@ class vaeLDA:
                 counts[0, words[j]] = vocab_count[count_words + j]
             counts = torch.tensor(counts, dtype=torch.float)
             doc_topics = predictor(counts)
-            pyro.sample("doc_topics_{}".format(i), dist.Delta(doc_topics, event_dim=1))
+            doc_x_topics = pyro.sample("doc_topics_{}".format(i), dist.Delta(doc_topics, event_dim=1))
             count_words += len(words)
+            with pyro.plate("words_{}".format(i), self.num_words_per_doc_vec[i]):
+                word_x_topics = pyro.sample("word_topics_{}".format(i), dist.Categorical(doc_x_topics)
+                                            , infer={"enumerate": "parallel"})
 
         return topic_words
