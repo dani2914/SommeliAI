@@ -85,7 +85,7 @@ def clean_stop_punct_digit_n_lower(txt):
 
 
 
-def mark_tokens_tbd(txt, ngram, custom_stopwords):
+def preprocess_tokens(txt, ngram, custom_stopwords):
     tokens = word_tokenize(txt)
     stop_words = stop_n_punct_words if custom_stopwords is None \
         else set(list(stop_n_punct_words) + custom_stopwords)
@@ -105,12 +105,16 @@ def preprocess_and_index(tmp_df, ngram=1, custom_stopwords=None):
 
     print("Preprocessing tokens... (this part is slow)")
     tmp_df["description"] = tmp_df["description"].apply(
-        mark_tokens_tbd, args=(ngram, custom_stopwords))
+        preprocess_tokens, args=(ngram, custom_stopwords))
 
     print("Building Index and ngram...")
     vectorizer = CountVectorizer(
         ngram_range=(1, ngram), analyzer="word", strip_accents="unicode")
     sparse_count_vec = vectorizer.fit_transform(tmp_df["description"])
+
+    if ngram > 1:
+        tmp_df["description"] = tmp_df["description"].apply(
+            lambda txt: re.sub("x_____x ", "", txt))
 
     x_vec, y_vec, count_vec = sparse.find(sparse_count_vec)
 
@@ -121,17 +125,30 @@ def preprocess_and_index(tmp_df, ngram=1, custom_stopwords=None):
     # the dictionary key to match each int to the original word
     vocab_dict = vectorizer.vocabulary_
 
-    prune_list = []
-    dict_items = list(vocab_dict.items())
-    for key, value in dict_items:
-        if key.startswith('x_____x') or key.endswith('x_____x'):
-            prune_list.append(vocab_dict.pop(key, None))
+    key_list, value_list = [], []
+    for key, value in list(vocab_dict.items()):
+        key_list.append(key)
+        value_list.append(value)
 
-    # prune all the stop word ngrams #if ngram > 1:
-    keep_ix = np.isin(y_vec, prune_list, invert=True)
-    x_vec = x_vec[keep_ix]
-    y_vec = y_vec[keep_ix]
+    sort_ix = np.argsort(value_list)
+    key_list = np.array(key_list)[sort_ix]
+    #value_list = np.array(value_list)[sort_ix]
 
+    sort_ix = np.argsort(y_vec)
+    y_vec = y_vec[sort_ix]
+    x_vec = x_vec[sort_ix]
+
+    unique_y_vec, y_count_vec = np.unique(y_vec, return_counts=True)
+
+    dict_del_key_vec = [key.startswith('x_____x') or key.endswith('x_____x') for key in key_list]
+    key_list = key_list[np.logical_not(dict_del_key_vec)]
+    val_list = np.arange(len(key_list))
+
+    del_key_vec = np.repeat(dict_del_key_vec, y_count_vec)
+    x_vec = x_vec[np.logical_not(del_key_vec)]
+    y_vec = np.repeat(np.arange(len(key_list)), y_count_vec[np.logical_not(dict_del_key_vec)])
+
+    filtered_dict = dict(zip(key_list, val_list))
     unique, counts = np.unique(y_vec, return_counts=True)
     vocab_count = dict(zip(unique, counts))
 
@@ -148,15 +165,9 @@ def preprocess_and_index(tmp_df, ngram=1, custom_stopwords=None):
     bincount_tup = tuple(int(bincount) for bincount in x_vec_bincount)
     indexed_txt_list = list(torch.split(y_vec, bincount_tup))
 
-    # test_list = [indexed_txt[np.isin(indexed_txt, prune_list, invert=True)]
-    #                     for indexed_txt in test_list]
-    #
-    # [indexed_txt[np.isin(indexed_txt.cpu(), prune_list, invert=True)]
-    #  for indexed_txt in indexed_txt_list]
-
     print("Preprocessing + Indexing complete.")
 
-    return tmp_df, indexed_txt_list, vocab_dict, vocab_count
+    return tmp_df, indexed_txt_list, filtered_dict, vocab_count
 
 
 
