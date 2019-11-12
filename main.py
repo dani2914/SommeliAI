@@ -127,7 +127,8 @@ def main(neural_args):
 
     for i in range(1000):
         if isinstance(orig_lda, supervisedLDA):
-            pred = guide(indexed_txt_list, label_list).data.numpy()
+            pred, mean, sigma = guide(indexed_txt_list, label_list)
+            pred = pred.data.numpy()
         else:
             pred = guide(indexed_txt_list).data.numpy()
         preds.append(pred)
@@ -143,7 +144,7 @@ def main(neural_args):
         sorted_words_ix = np.argsort(posterior_topics_x_words[i])[::-1]
         print("topic %s" % i)
         print([word[0] for word in vocab[sorted_words_ix][:20]])
-        output.write(" ".join([word[0] for word in vocab[sorted_words_ix]]))
+        # output.write(" ".join([word[0] for word in vocab[sorted_words_ix]]))
 
 
 if __name__ == "__main__":
