@@ -10,11 +10,18 @@ import torch
 import re
 import string
 
+from customised_stopword import customised_stopword
 from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from nltk.stem import SnowballStemmer
 from nltk import word_tokenize
 
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy import sparse
+
+
+lemmatizer = WordNetLemmatizer()
+snow = SnowballStemmer('english')
 
 stop_n_punct_words = set(stopwords.words("english") + list(string.punctuation))
 
@@ -53,17 +60,104 @@ def filter_by_topic(tmp_df, keep_top_n_topics=0, min_count_threshold=0):
 
     return tmp_df
 
+def remove_duplicate(txt):
+    from collections import defaultdict
+    word_count = defaultdict(int)
+    words = txt.split(" ")
+    for word in words:
+        word_count[word] += 1
+
+    return " ".join(word_count.keys())
+
 
 def clean_stop_punct_digit_n_lower(txt):
 
     txt = re.sub(r"[\'\.,-?!]", " ", txt)
-    token = txt.split(" ")
+    #token = txt.split(" ")
+    token = word_tokenize(txt)
+    #token = lemmatizer.lemmatize(token)
 
-    clean_token = [word.lower() for word in token if word.lower()
-                   not in stop_n_punct_words and re.match(r"^\d+?\.\d+?$", word) is None
-                   and len(word) >= 3 and "\'" not in word and not word.isnumeric()]
+    clean_token = [lemmatizer.lemmatize(word.lower()) for word in token if word.lower()
+                   not in stop_n_punct_words and re.match(r"^.*\d+.*$", word) is None
+                   and len(word) >= 4 and "\'" not in word and not word.isnumeric()]
 
     return " ".join(clean_token)
+
+
+
+def mark_tokens_tbd(txt, ngram, custom_stopwords):
+    tokens = word_tokenize(txt)
+    stop_words = stop_n_punct_words if custom_stopwords is None \
+        else set(list(stop_n_punct_words) + custom_stopwords)
+
+    if ngram > 1:
+        tokens = ["x_____x" if token.lower() in stop_words or re.match(r"^.*\d+.*$", token)
+                  else snow.stem(token.lower()) for token in tokens]
+    else:
+        tokens = [snow.stem(token.lower()) for token in tokens if tokens.lower()
+                   not in stop_words and re.match(r"^.*\d+.*$", token) is None]
+
+    tokens = " ".join(tokens)
+
+    return tokens
+
+def preprocess_and_index(tmp_df, ngram=1, custom_stopwords=None):
+
+    print("Preprocessing tokens... (this part is slow)")
+    tmp_df["description"] = tmp_df["description"].apply(
+        mark_tokens_tbd, args=(ngram, custom_stopwords))
+
+    print("Building Index and ngram...")
+    vectorizer = CountVectorizer(
+        ngram_range=(1, ngram), analyzer="word", strip_accents="unicode")
+    sparse_count_vec = vectorizer.fit_transform(tmp_df["description"])
+
+    x_vec, y_vec, count_vec = sparse.find(sparse_count_vec)
+
+    # add in duplicates
+    x_vec = np.repeat(x_vec, count_vec)
+    y_vec = np.repeat(y_vec, count_vec)
+
+    # the dictionary key to match each int to the original word
+    vocab_dict = vectorizer.vocabulary_
+
+    prune_list = []
+    dict_items = list(vocab_dict.items())
+    for key, value in dict_items:
+        if key.startswith('x_____x') or key.endswith('x_____x'):
+            prune_list.append(vocab_dict.pop(key, None))
+
+    # prune all the stop word ngrams #if ngram > 1:
+    keep_ix = np.isin(y_vec, prune_list, invert=True)
+    x_vec = x_vec[keep_ix]
+    y_vec = y_vec[keep_ix]
+
+    unique, counts = np.unique(y_vec, return_counts=True)
+    vocab_count = dict(zip(unique, counts))
+
+    # convert to torch variables
+    x_vec = torch.tensor(x_vec, dtype=torch.int32)
+    y_vec = torch.tensor(y_vec, dtype=torch.float)
+
+    # sort the vecs
+    sort_ix = torch.argsort(x_vec)
+    x_vec = x_vec[sort_ix]
+    y_vec = y_vec[sort_ix]
+
+    x_vec_bincount = torch.bincount(x_vec.cpu())
+    bincount_tup = tuple(int(bincount) for bincount in x_vec_bincount)
+    indexed_txt_list = list(torch.split(y_vec, bincount_tup))
+
+    # test_list = [indexed_txt[np.isin(indexed_txt, prune_list, invert=True)]
+    #                     for indexed_txt in test_list]
+    #
+    # [indexed_txt[np.isin(indexed_txt.cpu(), prune_list, invert=True)]
+    #  for indexed_txt in indexed_txt_list]
+
+    print("Preprocessing + Indexing complete.")
+
+    return tmp_df, indexed_txt_list, vocab_dict, vocab_count
+
 
 
 def preprocess(tmp_df, preprocess=False):
@@ -83,7 +177,7 @@ def conv_word_to_indexed_txt(txt_vec):
 
     # transform words into integer indexes, comes out as n x m
     # where n = # txt doc, m = # unique words for whole universe
-    vectorizer = CountVectorizer()
+    vectorizer = CountVectorizer(stop_words=customised_stopword, analyzer='word')#CountVectorizer(ngram_range=(1,2), analyzer='word')
     sparse_count_vec = vectorizer.fit_transform(txt_vec)
 
     # create n x p list of words represented by ints,  where p = # words in each documentx

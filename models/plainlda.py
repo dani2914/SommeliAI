@@ -74,7 +74,7 @@ class plainLDA:
 
         with pyro.plate("topics", self.K):
             # eta_q => q for the per-topic word distribution
-            eta_q = pyro.param("eta_q", torch.rand(self.K, self.V),
+            eta_q = pyro.param("eta_q", torch.rand(self.V),
                                constraint=constraints.positive)
             # beta_q => posterior per topic word vec
             beta_q = pyro.sample("beta", dist.Dirichlet(eta_q))
