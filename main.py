@@ -82,7 +82,7 @@ def main(neural_args):
     # orig_lda = plainLDA(num_txt, num_words_per_txt,
     #                      num_topic, num_vocab, SUBSAMPLE_SIZE)
     orig_lda = supervisedLDA(num_txt, num_words_per_txt,
-                           num_topic, num_vocab, SUBSAMPLE_SIZE)
+                          num_topic, num_vocab, SUBSAMPLE_SIZE)
     #orig_lda = plainLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
 
     if isinstance(orig_lda, supervisedLDA):
@@ -103,7 +103,7 @@ def main(neural_args):
         loss=orig_lda.loss)
 
     losses, alpha, beta = [], [], []
-    num_step = 1000
+    num_step = 500
     for step in range(num_step):
         loss = svi.step(*args)
         losses.append(loss)
@@ -133,16 +133,17 @@ def main(neural_args):
         preds.append(pred)
 
     posterior_topics_x_words = np.stack(preds).mean(0)
-
+    np.savetxt('posterior_topic_words.csv', posterior_topics_x_words, delimiter=',')
 #    for i in range(num_topic):
 #        non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.005)[0]
 #        print("topic %s" % i)
 #        print([word[0] for word in vocab[non_trivial_words_ix]])
-
+    output = open("posterior_topic_words.csv", "a")
     for i in range(num_topic):
-        sorted_words_ix = np.argsort(posterior_topics_x_words[i])
+        sorted_words_ix = np.argsort(posterior_topics_x_words[i])[::-1]
         print("topic %s" % i)
-        print([word[0] for word in vocab[sorted_words_ix][-10:]])
+        print([word[0] for word in vocab[sorted_words_ix][:20]])
+        output.write(" ".join([word[0] for word in vocab[sorted_words_ix]]))
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import re
 import string
-
+from nltk.stem import PorterStemmer
 from customised_stopword import customised_stopword
 from nltk.corpus import stopwords
 from nltk import word_tokenize
@@ -19,6 +19,7 @@ from scipy import sparse
 
 stop_n_punct_words = set(stopwords.words("english") + list(string.punctuation))
 
+ps = PorterStemmer()
 
 def fetch_dataset():
     """ fetch data from disk and return a dataframe """
@@ -71,7 +72,7 @@ def clean_stop_punct_digit_n_lower(txt):
     txt = re.sub(r"[\'\.,-?!]", " ", txt)
     token = txt.split(" ")
 
-    clean_token = [word.lower() for word in token if word.lower()
+    clean_token = [ps.stem(word.lower()) for word in token if word.lower()
                    not in stop_n_punct_words and re.match("^.*\d+.*$", word) is None
                    and len(word) >= 4 and "\'" not in word and not word.isnumeric()]
 

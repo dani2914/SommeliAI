@@ -37,7 +37,7 @@ class supervisedLDA():
     def model(self, data=None, label=None):
         """pyro model for lda"""
         # beta => prior for the per-topic word distributions
-        beta_0 = torch.ones(self.num_vocabs) / self.num_vocabs
+        beta_0 = torch.ones(self.num_vocabs)
 
         # returns t x w matrix
         with pyro.plate("topics", self.num_topics):
@@ -84,20 +84,20 @@ class supervisedLDA():
 
         with pyro.plate("topics", self.num_topics):
             # beta_q => q for the per-topic word distribution
-            beta_q = pyro.param("beta_q", torch.randn(self.num_vocabs), constraint=constraints.positive)
+            beta_q = pyro.param("beta_q", torch.ones(self.num_vocabs), constraint=constraints.positive)
             phi = pyro.sample("phi", dist.Dirichlet(beta_q))
 
         # eta => prior for regression coefficient
         weights_loc = pyro.param('weights_loc', torch.randn(self.num_topics))
-        weights_scale = pyro.param('weights_scale', torch.randn(self.num_topics, self.num_topics),
+        weights_scale = pyro.param('weights_scale', torch.eye(self.num_topics),
                                    constraint=constraints.positive)
         eta = pyro.sample("eta", dist.MultivariateNormal(loc=weights_loc, covariance_matrix=weights_scale))
         # sigma => prior for regression variance
-        sigma_loc = pyro.param('bias', torch.randn(1.), constraint=constraints.positive)
+        sigma_loc = pyro.param('bias', torch.tensor(1.), constraint=constraints.positive)
         sigma = pyro.sample("sigma", dist.Normal(sigma_loc, torch.tensor(0.05)))
 
         for i in pyro.plate("documents", self.num_docs, subsample_size=self.num_subsample):
-            alpha_q = pyro.param(f"alpha_q_{i}", torch.randn(self.num_topics),
+            alpha_q = pyro.param(f"alpha_q_{i}", torch.ones(self.num_topics),
                                  constraint=constraints.positive)
             theta = pyro.sample(f"theta_{i}", dist.Dirichlet(alpha_q))
             z_bar = torch.zeros(self.num_topics)
