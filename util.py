@@ -94,7 +94,7 @@ def mark_tokens_tbd(txt, ngram, custom_stopwords):
         tokens = ["x_____x" if token.lower() in stop_words or re.match(r"^.*\d+.*$", token)
                   else snow.stem(token.lower()) for token in tokens]
     else:
-        tokens = [snow.stem(token.lower()) for token in tokens if tokens.lower()
+        tokens = [snow.stem(token.lower()) for token in tokens if token
                    not in stop_words and re.match(r"^.*\d+.*$", token) is None]
 
     tokens = " ".join(tokens)
