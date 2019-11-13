@@ -14,7 +14,9 @@ from models import (
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Amortized Latent Dirichlet Allocation")
+    parser = argparse.ArgumentParser(
+        description="Amortized Latent Dirichlet Allocation"
+    )
 
     parser.add_argument("-n", "--num-steps", default=1000, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
@@ -46,10 +48,16 @@ if __name__ == "__main__":
     score_vec = clean_df["points"].astype(np.float64)
     unique_topics = np.unique(topic_vec)
 
-    indexed_txt_list, vocab_dict, vocab_count = util.conv_word_to_indexed_txt(txt_vec)
+    (indexed_txt_list,
+        vocab_dict,
+        vocab_count) = util.conv_word_to_indexed_txt(
+        txt_vec
+    )
 
     topic_map = {unique_topics[i]: i + 1 for i in range(len(unique_topics))}
-    clean_df.loc[:, "class"] = clean_df["variety"].apply(lambda row: topic_map[row])
+    clean_df.loc[:, "class"] = clean_df["variety"].apply(
+        lambda row: topic_map[row]
+    )
     label_list = score_vec.tolist()
 
     num_topic = len(unique_topics)
@@ -64,7 +72,9 @@ if __name__ == "__main__":
     #        torch.tensor([1, 3, 5, 7]),
     #        torch.tensor([5, 6, 7])]
     #    num_topic = 3
-    #    num_vocab = len(np.unique([word for txt in indexed_txt_list for word in txt]))
+    #    num_vocab = len(np.unique(
+    #       [word for txt in indexed_txt_list for word in txt])
+    #    )
     #    num_txt = len(indexed_txt_list)
     #    num_words_per_txt = [len(txt) for txt in indexed_txt_list]
 
@@ -108,10 +118,13 @@ if __name__ == "__main__":
             beta.append(pyro.param("beta_q"))
         if step % 50 == 0:
             print("{}: {}".format(step, np.round(loss, 1)))
-            
+
             # evaluate results
             dtype = [("word", "<U17"), ("index", int)]
-            vocab = np.array([item for item in vocab_dict.items()], dtype=dtype)
+            vocab = np.array(
+                [item for item in vocab_dict.items()],
+                dtype=dtype
+            )
             vocab = np.sort(vocab, order="index")
 
             preds = []
@@ -125,10 +138,21 @@ if __name__ == "__main__":
                 preds.append(pred)
 
             posterior_topics_x_words = np.stack(preds).mean(0)
-            np.savetxt('posterior_topic_words.csv', posterior_topics_x_words, delimiter=',')
-            with open(f"./outputs/posterior_topic_words_{step}.csv", "w") as output:
+            np.savetxt(
+                'posterior_topic_words.csv',
+                posterior_topics_x_words,
+                delimiter=','
+            )
+            with open(
+                f"./outputs/posterior_topic_words_{step}.csv", "w"
+            ) as output:
                 for j in range(num_topic):
-                    sorted_words_ix = np.argsort(posterior_topics_x_words[j])[::-1]
+                    sorted_words_ix = np.argsort(
+                        posterior_topics_x_words[j]
+                    )[::-1]
                     # print("topic %s" % i)
                     # print([word[0] for word in vocab[sorted_words_ix][:10]])
-                    output.write(" ".join([word[0] for word in vocab[sorted_words_ix[:10]]]) + "\n")
+                    output.write(
+                        " ".join([w[0] for w in vocab[sorted_words_ix[:10]]])
+                        + "\n"
+                    )

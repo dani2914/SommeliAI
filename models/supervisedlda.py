@@ -71,8 +71,8 @@ class supervisedLDA():
                                            dist.Categorical(theta),
                                            infer={"enumerate": "parallel"})
 
-                # REMST Don't do this -- this might be inducing nans in the log loss
-                #   of beta
+                # REMST Don't do this -- this might be inducing
+                #   nans in the log loss of beta
                 # weights = beta[z_assignment]
                 # weights += 1.e-10 / self.V
                 # weights /= 1. + 1.e-10
