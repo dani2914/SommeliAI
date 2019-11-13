@@ -1,20 +1,13 @@
-import argparse
-import functools
-import numpy as np
-import logging
-import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
-import util
+""" Supervised LDA (McAuliffe & Blei) """
+
 import torch
-from torch import nn
 from torch.distributions import constraints
-from pyro.infer.autoguide import AutoDiagonalNormal
 
 import pyro
 import pyro.distributions as dist
 
-from pyro.infer import SVI, TraceGraph_ELBO
-from pyro.optim import ClippedAdam
+from pyro.infer import TraceGraph_ELBO
+
 
 class supervisedLDA():
     def __init__(self, num_docs, num_words_per_doc,
@@ -49,10 +42,19 @@ class supervisedLDA():
         # eta => prior for regression coefficient
         weights_loc = torch.randn(self.K)
         weights_scale = torch.eye(self.K)
-        eta = pyro.sample("eta", dist.MultivariateNormal(loc=weights_loc, covariance_matrix=weights_scale))
+        eta = pyro.sample(
+            "eta",
+            dist.MultivariateNormal(
+                loc=weights_loc,
+                covariance_matrix=weights_scale
+            )
+        )
         # sigma => prior for regression variance
         sigma_loc = torch.tensor(1.)
-        sigma = pyro.sample("sigma", dist.Normal(sigma_loc, torch.tensor(0.05)))
+        sigma = pyro.sample(
+            "sigma",
+            dist.Normal(sigma_loc, torch.tensor(0.05))
+        )
 
         # returns d x t matrix
         Theta = []
@@ -73,14 +75,18 @@ class supervisedLDA():
                 weights += 1.e-10 / self.V
                 weights /= 1. + 1.e-10
 
-                w = pyro.sample(f"w_{d}", dist.Categorical(weights), obs=doc)
+                _ = pyro.sample(f"w_{d}", dist.Categorical(weights), obs=doc)
 
             for z in z_assignment:
                 z_bar[z] += 1
             z_bar /= self.N[d]
 
             mean = torch.dot(eta, z_bar)
-            y_label = pyro.sample(f"doc_label_{d}", dist.Normal(mean, sigma), obs=torch.tensor([label[d]]))
+            y_label = pyro.sample(
+                f"doc_label_{d}",
+                dist.Normal(mean, sigma),
+                obs=torch.tensor([label[d]])
+            )
         y_list.append(y_label)
 
         return Theta, beta, y_list
@@ -98,18 +104,38 @@ class supervisedLDA():
         weights_loc = pyro.param('weights_loc', torch.randn(self.K))
         weights_scale = pyro.param('weights_scale', torch.eye(self.K),
                                    constraint=constraints.positive)
-        eta = pyro.sample("eta", dist.MultivariateNormal(loc=weights_loc, covariance_matrix=weights_scale))
+        eta = pyro.sample(
+            "eta",
+            dist.MultivariateNormal(
+                loc=weights_loc,
+                covariance_matrix=weights_scale
+            )
+        )
         # sigma => prior for regression variance
-        sigma_loc = pyro.param('bias', torch.tensor(1.), constraint=constraints.positive)
-        sigma = pyro.sample("sigma", dist.Normal(sigma_loc, torch.tensor(0.05)))
+        sigma_loc = pyro.param(
+            'bias',
+            torch.tensor(1.),
+            constraint=constraints.positive
+        )
+        sigma = pyro.sample(
+            "sigma",
+            dist.Normal(sigma_loc, torch.tensor(0.05))
+        )
 
-        for d in pyro.plate("documents", self.D, subsample_size=self.S):
+        for d in pyro.plate(
+            "documents",
+            self.D,
+            subsample_size=self.S
+        ):
             alpha_q = pyro.param(f"alpha_q_{d}", torch.ones(self.K),
                                  constraint=constraints.positive)
             theta_q = pyro.sample(f"theta_{d}", dist.Dirichlet(alpha_q))
             z_bar = torch.zeros(self.K)
             with pyro.plate(f"words_{d}", self.N[d]):
-                z_assignment = pyro.sample(f"z_assignment_{d}", dist.Categorical(theta_q))
+                z_assignment = pyro.sample(
+                    f"z_assignment_{d}",
+                    dist.Categorical(theta_q)
+                )
 
             for z in z_assignment:
                 z_bar[z] += 1

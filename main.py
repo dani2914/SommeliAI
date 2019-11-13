@@ -2,10 +2,8 @@
 
 import argparse
 import functools
-import importlib
 import util
 import numpy as np
-import torch
 import pyro
 from pyro.optim import Adam
 
@@ -19,14 +17,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Amortized Latent Dirichlet Allocation")
 
     parser.add_argument("-n", "--num-steps", default=1000, type=int)
-    parser.add_argument("-l", "--layer-sizes", default="128-128")
     parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
-    parser.add_argument('--jit', action='store_true')
     neural_args = parser.parse_args()
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = None #use None if want to use full dataset
+    TESTING_SUBSIZE = 0  # use None if want to use full dataset
     SUBSAMPLE_SIZE = 100
     USE_CUDA = True
 
@@ -39,7 +35,7 @@ if __name__ == "__main__":
     full_df = util.filter_by_topic(full_df, keep_top_n_topics=10)
 
     # if not none, then subset the dataframe for testing purposes
-    if TESTING_SUBSIZE is not None:
+    if TESTING_SUBSIZE > 0:
         full_df = full_df.head(TESTING_SUBSIZE)
 
     # remove stop words, punctuation, digits and then change to lower case
