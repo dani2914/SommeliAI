@@ -71,11 +71,16 @@ class supervisedLDA():
                                            dist.Categorical(theta),
                                            infer={"enumerate": "parallel"})
 
-                weights = beta[z_assignment]
-                weights += 1.e-10 / self.V
-                weights /= 1. + 1.e-10
+                # REMST Don't do this -- this might be inducing nans in the log loss
+                #   of beta
+                # weights = beta[z_assignment]
+                # weights += 1.e-10 / self.V
+                # weights /= 1. + 1.e-10
 
-                _ = pyro.sample(f"w_{d}", dist.Categorical(weights), obs=doc)
+                _ = pyro.sample(
+                    f"w_{d}", dist.Categorical(beta[z_assignment]),
+                    obs=doc
+                )
 
             for z in z_assignment:
                 z_bar[z] += 1
