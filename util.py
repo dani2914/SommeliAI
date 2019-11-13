@@ -218,6 +218,9 @@ def get_all_supervised_requirements(fname=None, max_samples=0, max_annotations=5
     clean_df[annotation_cols] = clean_df[annotation_cols].applymap(
         lambda s: annots_map[s] if s in annots_map else len(annots)
     ) # force annote all infrequent words as an "other" category
+    
+    # recompute after dropping a bunch of stuff..
+    indexed_txt_list, vocab_dict, vocab_counts = conv_word_to_indexed_txt(clean_df['description'])
 
     num_topics = len(topics)
     num_vocab = len(vocab_dict)
@@ -243,3 +246,36 @@ def get_all_supervised_requirements(fname=None, max_samples=0, max_annotations=5
         docs_counts[e, :len(d)] = d
 
     return clean_df, docs_words, docs_counts, num_topics, num_vocab, min_acceptable_words
+
+def map_idx(row, col, dim):
+    if row > col:
+        row, col = col, row
+    
+    # now row <= col
+    idx = (2*dim - row + 1)*row/2 + col - row
+    
+    return int(idx)
+
+def log_sum(log_a, log_b):
+
+    if (log_a < log_b):
+        v = log_b + np.log(1. + np.exp(log_a - log_b))
+    else:
+        v = log_a + np.log(1. + np.exp(log_b - log_a))
+
+    return v
+
+
+# with open("somm-label.dat", "w") as file: 
+#     ...:     for c in docs_labels: 
+#     ...:         file.write("%d\n" % c) 
+#     ...:                                                                                                                                               
+
+# In [57]: with open("somm-data.dat", "w") as file: 
+#     ...:     outlines = [] 
+#     ...:     for words, counts in zip(docs_words, docs_counts): 
+#     ...:         mask = ~np.isnan(words) 
+#     ...:         outline = "%d " % len(words[mask]) 
+#     ...:         outline += " ".join(["%d:%d" % (int(w), int(c)) for w, c in zip(words[mask], counts[mask])]) 
+#     ...:         outlines.append(outline) 
+#     ...:         file.write(outline + "\n") 
