@@ -20,7 +20,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from scipy import sparse
 
 
-lemmatizer = WordNetLemmatizer()
+lm = WordNetLemmatizer()
 snow = SnowballStemmer('english')
 
 stop_n_punct_words = set(stopwords.words("english") + list(string.punctuation))
@@ -94,8 +94,8 @@ def preprocess_tokens(txt, ngram, custom_stopwords):
         tokens = ["x_____x" if token.lower() in stop_words or re.match(r"^.*\d+.*$", token)
                   else snow.stem(token.lower()) for token in tokens]
     else:
-        tokens = [snow.stem(token.lower()) for token in tokens if token
-                   not in stop_words and re.match(r"^.*\d+.*$", token) is None]
+        tokens = [lm.lemmatize(lm.lemmatize(lm.lemmatize(token.lower()), pos="v"), pos="a") for token in tokens]
+        tokens = [token for token in tokens if token not in stop_words and re.match(r"^.*\d+.*$", token) is None]
 
     tokens = " ".join(tokens)
 
