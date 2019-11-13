@@ -23,13 +23,19 @@ from models import (
 #pyro.enable_validation(False)
 
 
-def main(neural_args):
-    """ main function """
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Amortized Latent Dirichlet Allocation")
+
+    parser.add_argument("-n", "--num-steps", default=1000, type=int)
+    parser.add_argument("-l", "--layer-sizes", default="128-128")
+    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
+    parser.add_argument('--jit', action='store_true')
+    neural_args = parser.parse_args()
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
     TESTING_SUBSIZE = None #use None if want to use full dataset
-    SUBSAMPLE_SIZE = 50
+    SUBSAMPLE_SIZE = 100
     USE_CUDA = True
 
     # if USE_CUDA:
@@ -103,56 +109,45 @@ def main(neural_args):
         loss=orig_lda.loss)
 
     losses, alpha, beta = [], [], []
-    num_step = 500
+    num_step = 1000
     for step in range(num_step):
         loss = svi.step(*args)
         losses.append(loss)
         if isinstance(orig_lda, plainLDA):
            alpha.append(pyro.param("alpha_q"))
            beta.append(pyro.param("beta_q"))
-        if step % 10 == 0:
+        if step % 50 == 0:
             print("{}: {}".format(step, np.round(loss, 1)))
-    # evaluate results
-    dtype = [("word", "<U17"), ("index", int)]
-    vocab = np.array([item for item in vocab_dict.items()], dtype=dtype)
-    vocab = np.sort(vocab, order="index")
+            # evaluate results
+            dtype = [("word", "<U17"), ("index", int)]
+            vocab = np.array([item for item in vocab_dict.items()], dtype=dtype)
+            vocab = np.sort(vocab, order="index")
 
-    # posterior_topics_x_words = dist.Dirichlet(pyro.param("phi")).sample()
+            # posterior_topics_x_words = dist.Dirichlet(pyro.param("phi")).sample()
 
-    #posterior_doc_x_words, posterior_topics_x_words = \
-    #        orig_lda.model(*args)
-    # posterior_topics_x_words = posterior_topics_x_words.cpu()
+            #posterior_doc_x_words, posterior_topics_x_words = \
+            #        orig_lda.model(*args)
+            # posterior_topics_x_words = posterior_topics_x_words.cpu()
 
-    preds = []
+            preds = []
 
-    for i in range(1000):
-        if isinstance(orig_lda, supervisedLDA):
-            pred, mean, sigma = guide(indexed_txt_list, label_list)
-            pred = pred.data.numpy()
-        else:
-            pred = guide(indexed_txt_list).data.numpy()
-        preds.append(pred)
+            for i in range(100):
+                if isinstance(orig_lda, supervisedLDA):
+                    pred, mean, sigma = guide(indexed_txt_list, label_list)
+                    pred = pred.data.numpy()
+                else:
+                    pred = guide(indexed_txt_list).data.numpy()
+                preds.append(pred)
 
-    posterior_topics_x_words = np.stack(preds).mean(0)
-    np.savetxt('posterior_topic_words.csv', posterior_topics_x_words, delimiter=',')
-#    for i in range(num_topic):
-#        non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.005)[0]
-#        print("topic %s" % i)
-#        print([word[0] for word in vocab[non_trivial_words_ix]])
-    output = open("posterior_topic_words.csv", "a")
-    for i in range(num_topic):
-        sorted_words_ix = np.argsort(posterior_topics_x_words[i])[::-1]
-        print("topic %s" % i)
-        print([word[0] for word in vocab[sorted_words_ix][:20]])
-        # output.write(" ".join([word[0] for word in vocab[sorted_words_ix]]))
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Amortized Latent Dirichlet Allocation")
-
-    parser.add_argument("-n", "--num-steps", default=1000, type=int)
-    parser.add_argument("-l", "--layer-sizes", default="128-128")
-    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
-    parser.add_argument('--jit', action='store_true')
-    args = parser.parse_args()
-    main(args)
+            posterior_topics_x_words = np.stack(preds).mean(0)
+            np.savetxt('posterior_topic_words.csv', posterior_topics_x_words, delimiter=',')
+            #    for i in range(num_topic):
+            #        non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.005)[0]
+            #        print("topic %s" % i)
+            #        print([word[0] for word in vocab[non_trivial_words_ix]])
+            with open(f"./outputs/posterior_topic_words_{step}.csv", "w") as output:
+                for j in range(num_topic):
+                    sorted_words_ix = np.argsort(posterior_topics_x_words[j])[::-1]
+                    # print("topic %s" % i)
+                    # print([word[0] for word in vocab[sorted_words_ix][:10]])
+                    output.write(" ".join([word[0] for word in vocab[sorted_words_ix[:10]]]) + "\n")

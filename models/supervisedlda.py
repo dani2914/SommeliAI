@@ -1,4 +1,3 @@
-
 import argparse
 import functools
 import numpy as np
@@ -14,9 +13,8 @@ from pyro.infer.autoguide import AutoDiagonalNormal
 import pyro
 import pyro.distributions as dist
 
-from pyro.infer import SVI, Trace_ELBO
+from pyro.infer import SVI, TraceGraph_ELBO
 from pyro.optim import ClippedAdam
-
 
 class supervisedLDA():
     def __init__(self, num_docs, num_words_per_doc,
@@ -33,7 +31,7 @@ class supervisedLDA():
 
     @property
     def loss(self):
-        return Trace_ELBO(max_plate_nesting=2)
+        return TraceGraph_ELBO(max_plate_nesting=2)
 
     def model(self, data=None, label=None):
         """pyro model for lda"""
@@ -41,8 +39,9 @@ class supervisedLDA():
         eta = torch.ones(self.V) / self.V
 
         # returns t x w matrix
-        with pyro.plate("topics", self.K):
-            beta = pyro.sample("beta", dist.Dirichlet(eta))
+        beta = torch.zeros((self.K, self.V))
+        for k in pyro.plate("topics", self.K):
+            beta[k, :] = pyro.sample(f"beta_{k}", dist.Dirichlet(eta))
 
         # alpha => prior for the per-doc topic vector
         alpha = torch.ones(self.K) / self.K
@@ -70,7 +69,11 @@ class supervisedLDA():
                                            dist.Categorical(theta),
                                            infer={"enumerate": "parallel"})
 
-                w = pyro.sample(f"w_{d}", dist.Categorical(beta[z_assignment]), obs=doc)
+                weights = beta[z_assignment]
+                weights += 1.e-10 / self.V
+                weights /= 1. + 1.e-10
+
+                w = pyro.sample(f"w_{d}", dist.Categorical(weights), obs=doc)
 
             for z in z_assignment:
                 z_bar[z] += 1
@@ -84,11 +87,12 @@ class supervisedLDA():
 
     def guide(self, data=None, label=None):
 
-        with pyro.plate("topics", self.K):
+        beta = torch.zeros((self.K, self.V))
+        for k in pyro.plate("topics", self.K):
             # eta_q => q for the per-topic word distribution
-            eta_q = pyro.param("eta_q", torch.rand(self.V),
+            eta_q = pyro.param(f"eta_q_{k}", torch.ones(self.V) / self.V,
                                constraint=constraints.positive)
-            beta = pyro.sample("beta", dist.Dirichlet(eta_q))
+            beta[k, :] = pyro.sample(f"beta_{k}", dist.Dirichlet(eta_q))
 
         # eta => prior for regression coefficient
         weights_loc = pyro.param('weights_loc', torch.randn(self.K))

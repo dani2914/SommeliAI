@@ -10,6 +10,10 @@ import torch
 import re
 import string
 from customised_stopword import customised_stopword
+
+import nltk
+nltk.download("wordnet")
+
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.stem import SnowballStemmer
@@ -17,6 +21,7 @@ from nltk import word_tokenize
 
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy import sparse
+
 
 
 lemmatizer = WordNetLemmatizer()
