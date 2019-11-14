@@ -1,26 +1,29 @@
-""" main driver """
+    """ main driver """
 
-import argparse
-import functools
-import importlib
-import util
-import numpy as np
-import torch
-import pyro
-from pyro.optim import Adam
-import pyro.distributions as dist
-from pyro.infer import EmpiricalMarginal, SVI, Trace_ELBO, TracePredictive
+    import argparse
+    import functools
+    import importlib
+    import re
+    import util
+    import numpy as np
+    import pandas as pd
+    import time
+    import torch
+    import pyro
+    from pyro.optim import Adam
+    import pyro.distributions as dist
+    from pyro.infer import EmpiricalMarginal, SVI, Trace_ELBO, TracePredictive
 
-from models import (
-    plainLDA,
-    vaniLDA,
-    vaeLDA,
-    supervisedLDA
-)
+    from models import (
+        plainLDA#,
+        #vaniLDA,
+        #vaeLDA,
+        #supervisedLDA
+    )
 
-#pyro.set_rng_seed(0)
-#pyro.clear_param_store()
-#pyro.enable_validation(False)
+    #pyro.set_rng_seed(0)
+    #pyro.clear_param_store()
+    #pyro.enable_validation(False)
 
 
 def main(neural_args):
@@ -28,12 +31,13 @@ def main(neural_args):
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 1000 #use None if want to use full dataset
-    SUBSAMPLE_SIZE = 50
+    TESTING_SUBSIZE = None #use None if want to use full dataset
+    SUBSAMPLE_SIZE = 100
     USE_CUDA = True
+    ix = round(time.time())
 
-    # if USE_CUDA:
-    #     torch.set_default_tensor_type("torch.cuda.FloatTensor")
+    if USE_CUDA:
+        torch.set_default_tensor_type("torch.cuda.FloatTensor")
 
     full_df = util.fetch_dataset()
 
@@ -45,14 +49,16 @@ def main(neural_args):
         full_df = full_df.head(TESTING_SUBSIZE)
 
     # remove stop words, punctuation, digits and then change to lower case
-    clean_df = util.preprocess(full_df, preprocess=True)
+    #clean_df = util.preprocess(full_df, preprocess=True)
+    clean_df, indexed_txt_list, vocab_dict, vocab_count = util.preprocess_and_index(full_df, ngram=1)
+    #ix_dict = {v: k for k, v in vocab_dict.items()}
 
     txt_vec = clean_df["description"]
     topic_vec = clean_df["variety"]
     score_vec = clean_df["points"].astype(np.float64)
     unique_topics = np.unique(topic_vec)
 
-    indexed_txt_list, vocab_dict, vocab_count = util.conv_word_to_indexed_txt(txt_vec)
+    #indexed_txt_list, vocab_dict, vocab_count = util.conv_word_to_indexed_txt(txt_vec)
 
     topic_map = {unique_topics[i]:i for i in range(len(unique_topics))}
     clean_df.loc[:, "class"] = clean_df["variety"].apply(lambda row: topic_map[row])
@@ -63,38 +69,33 @@ def main(neural_args):
     num_txt = len(indexed_txt_list)
     num_words_per_txt = [len(txt) for txt in indexed_txt_list]
 
-#    # purely for testing purposes, overrides original val with toy dataset
-#    indexed_txt_list = [
-#        torch.tensor([1, 2, 3, 4, 5]),
-#        torch.tensor([0, 2, 4, 6, 8, 9]),
-#        torch.tensor([1, 3, 5, 7]),
-#        torch.tensor([5, 6, 7])]
-#    num_topic = 3
-#    num_vocab = len(np.unique([word for txt in indexed_txt_list for word in txt]))
-#    num_txt = len(indexed_txt_list)
-#    num_words_per_txt = [len(txt) for txt in indexed_txt_list]
+    # evaluate results
+    dtype = [("word", "<U17"), ("index", int)]
+    vocab = np.array([item for item in vocab_dict.items()], dtype=dtype)
+    vocab = np.sort(vocab, order="index")
+
 
     # create object of LDA class
     # orig_lda = origLDA(num_txt, num_words_per_txt, num_topic, num_vocab)
-    orig_lda = vaeLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
+    #orig_lda = vaeLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
 
-    #orig_lda = plainLDA(num_txt, num_words_per_txt,
-     #                    num_topic, num_vocab, SUBSAMPLE_SIZE)
+    orig_lda = plainLDA(num_txt, num_words_per_txt,
+                        num_topic, num_vocab, SUBSAMPLE_SIZE)
     # orig_lda = supervisedLDA(num_txt, num_words_per_txt,
     #                     num_topic, num_vocab, SUBSAMPLE_SIZE)
     #orig_lda = plainLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
 
-    if isinstance(orig_lda, supervisedLDA):
-        args = (indexed_txt_list, label_list)
-    else:
-        args = (indexed_txt_list,)
+    # if isinstance(orig_lda, supervisedLDA):
+    #     args = (indexed_txt_list, label_list)
+    # else:
+    args = (indexed_txt_list,)
 
-    if isinstance(orig_lda, vaeLDA):
-        predictor = orig_lda.make_predictor(neural_args)
-        guide = functools.partial(orig_lda.parametrized_guide, predictor, vocab_count)
-
-    else:
-        guide = orig_lda.guide
+    # if isinstance(orig_lda, vaeLDA):
+    #     predictor = orig_lda.make_predictor(neural_args)
+    #     guide = functools.partial(orig_lda.parametrized_guide, predictor, vocab_count)
+    #
+    # else:
+    guide = orig_lda.guide
 
     svi = pyro.infer.SVI(
         model=orig_lda.model,
@@ -102,20 +103,55 @@ def main(neural_args):
         optim=Adam({"lr": ADAM_LEARN_RATE}),
         loss=orig_lda.loss)
 
+    pd.DataFrame(vocab).to_csv(f"results/dict_{ix}.csv")
+
     losses, alpha, beta = [], [], []
-    num_step = 1000
+    num_step = 5001
     for step in range(num_step):
         loss = svi.step(*args)
         losses.append(loss)
-        if isinstance(orig_lda, plainLDA):
-           alpha.append(pyro.param("alpha_q"))
-           beta.append(pyro.param("beta_q"))
         if step % 10 == 0:
             print("{}: {}".format(step, np.round(loss, 1)))
-    # evaluate results
-    dtype = [("word", "<U17"), ("index", int)]
-    vocab = np.array([item for item in vocab_dict.items()], dtype=dtype)
-    vocab = np.sort(vocab, order="index")
+
+            beta_q = guide()[0].cpu()
+            pd.DataFrame(beta_q.detach().numpy().T).to_csv(f"results/beta_q_{ix}_{step}.csv")
+
+            theta_q = guide()[1].cpu()
+            pd.DataFrame(theta_q.detach().numpy().T).to_csv(f"results/theta_q_{ix}_{step}.csv")
+
+            pd.DataFrame(losses).to_csv(f"results/loss_{ix}.csv")
+
+        if step % 100 == 0:
+            for i in range(num_topic):
+                sorted_words_ix = torch.argsort(beta_q[i])
+                print("topic %s" % i)
+                print([word[0] for word in vocab[sorted_words_ix][-10:]])
+
+        if step % 100 == 0:
+            alpha, alpha_ix = [], []
+            eta, eta_ix = [], []
+            for i in range(num_txt):
+                try:
+                    tensor = pyro.param(f"alpha_q_{i}")
+                    alpha.append(tensor.detach().cpu().numpy())
+                    alpha_ix.append(i)
+
+                    tensor = pyro.param(f"eta_q_{i}")
+                    eta.append(tensor.detach().cpu().numpy())
+                    eta_ix.append(i)
+                except:
+                    pass
+
+            pd.DataFrame(alpha, index=alpha_ix).to_csv(f"results/alpha_{ix}_{step}.csv")
+            pd.DataFrame(eta, index=eta_ix).to_csv(f"results/eta_{ix}_{step}.csv")
+
+        # if step % 500 == 0:
+        #     for i in range(num_topic):
+        #         sorted_words_ix = torch.argsort(posterior_topics_x_words[i])
+        #         print("topic %s" % i)
+        #         print([word[0] for word in vocab[sorted_words_ix][-10:]])
+
+
 
     # posterior_topics_x_words = dist.Dirichlet(pyro.param("phi")).sample()
 
@@ -123,26 +159,36 @@ def main(neural_args):
     #        orig_lda.model(*args)
     # posterior_topics_x_words = posterior_topics_x_words.cpu()
 
-    preds = []
-
-    for i in range(1000):
-        if isinstance(orig_lda, supervisedLDA):
-            pred = guide(indexed_txt_list, label_list).data.numpy()
-        else:
-            pred = guide(indexed_txt_list).data.numpy()
-        preds.append(pred)
-
-    posterior_topics_x_words = np.stack(preds).mean(0)
+    # preds = []
+    #
+    # for i in range(1000):
+    #     if isinstance(orig_lda, supervisedLDA):
+    #         pred = guide(indexed_txt_list, label_list).data.numpy()
+    #     else:
+    #         pred = guide(indexed_txt_list).data.numpy()
+    #     preds.append(pred)
+    #
+    # posterior_topics_x_words = np.stack(preds).mean(0)
 
 #    for i in range(num_topic):
 #        non_trivial_words_ix = np.where(posterior_topics_x_words[i] > 0.005)[0]
 #        print("topic %s" % i)
 #        print([word[0] for word in vocab[non_trivial_words_ix]])
-
-    for i in range(num_topic):
-        sorted_words_ix = np.argsort(posterior_topics_x_words[i])
-        print("topic %s" % i)
-        print([word[0] for word in vocab[sorted_words_ix][0:10]])
+#
+#     posterior_topics_x_words = guide()[0]
+#     posterior_topics_x_words = posterior_topics_x_words.cpu()
+#     theta_q = guide()[1]
+#
+#     for i in range(num_topic):
+#         sorted_words_ix = torch.argsort(posterior_topics_x_words[i])
+#         print("topic %s" % i)
+#         print([word[0] for word in vocab[sorted_words_ix][-10:]])
+#
+#     ix = round(time.time())
+#
+#     tmp_df = posterior_topics_x_words
+#     pd.DataFrame(tmp_df.detach().numpy().T).to_csv(f"results/beta_q_{ix}.csv")
+#     pd.DataFrame(vocab).to_csv(f"results/dict_{ix}.csv")
 
 
 if __name__ == "__main__":
