@@ -1,29 +1,30 @@
-    """ main driver """
+""" main driver """
 
-    import argparse
-    import functools
-    import importlib
-    import re
-    import util
-    import numpy as np
-    import pandas as pd
-    import time
-    import torch
-    import pyro
-    from pyro.optim import Adam
-    import pyro.distributions as dist
-    from pyro.infer import EmpiricalMarginal, SVI, Trace_ELBO, TracePredictive
+import argparse
+import functools
+import importlib
+import re
+import os
+import util
+import numpy as np
+import pandas as pd
+import time
+import torch
+import pyro
+from pyro.optim import Adam
+import pyro.distributions as dist
+from pyro.infer import EmpiricalMarginal, SVI, Trace_ELBO, TracePredictive
 
-    from models import (
-        plainLDA#,
-        #vaniLDA,
-        #vaeLDA,
-        #supervisedLDA
-    )
+from models import (
+    plainLDA#,
+    #vaniLDA,
+    #vaeLDA,
+    #supervisedLDA
+)
 
-    #pyro.set_rng_seed(0)
-    #pyro.clear_param_store()
-    #pyro.enable_validation(False)
+#pyro.set_rng_seed(0)
+#pyro.clear_param_store()
+#pyro.enable_validation(False)
 
 
 def main(neural_args):
@@ -35,6 +36,10 @@ def main(neural_args):
     SUBSAMPLE_SIZE = 100
     USE_CUDA = True
     ix = round(time.time())
+    os.mkdir(f"results/{ix}")
+
+    print("alpha: 1/10; eta: 1/100")
+    print(ix)
 
     if USE_CUDA:
         torch.set_default_tensor_type("torch.cuda.FloatTensor")
@@ -48,9 +53,20 @@ def main(neural_args):
     if TESTING_SUBSIZE is not None:
         full_df = full_df.head(TESTING_SUBSIZE)
 
+    # stop_words = ['acidity', 'age', 'apple', 'aroma', 'balance', 'berry', 'black',
+    #   'blackberry', 'blend', 'cabernet', 'cherry', 'chocolate', 'citrus',
+    #   'crisp', 'currant', 'dark', 'drink', 'dry', 'finish', 'flavor',
+    #   'fresh', 'fruit', 'full', 'give', 'good', 'green', 'ha', 'herb',
+    #   'hint', 'juicy', 'lemon', 'light', 'make', 'merlot', 'nose',
+    #   'note', 'oak', 'offer', 'palate', 'peach', 'pepper', 'pinot',
+    #   'plum', 'raspberry', 'red', 'rich', 'ripe', 'sauvignon', 'show',
+    #   'soft', 'spice', 'structure', 'sweet', 'tannin', 'texture',
+    #   'toast', 'vanilla', 'vineyard', 'well', 'wine', 'year']
+
     # remove stop words, punctuation, digits and then change to lower case
     #clean_df = util.preprocess(full_df, preprocess=True)
-    clean_df, indexed_txt_list, vocab_dict, vocab_count = util.preprocess_and_index(full_df, ngram=1)
+    clean_df, indexed_txt_list, vocab_dict, vocab_count = \
+        util.preprocess_and_index(full_df, ngram=1)#, pre_stopwords=stop_words)
     #ix_dict = {v: k for k, v in vocab_dict.items()}
 
     txt_vec = clean_df["description"]
@@ -103,9 +119,9 @@ def main(neural_args):
         optim=Adam({"lr": ADAM_LEARN_RATE}),
         loss=orig_lda.loss)
 
-    pd.DataFrame(vocab).to_csv(f"results/dict_{ix}.csv")
+    pd.DataFrame(vocab).to_csv(f"results/{ix}/dict_{ix}.csv")
 
-    losses, alpha, beta = [], [], []
+    losses = []
     num_step = 5001
     for step in range(num_step):
         loss = svi.step(*args)
@@ -114,12 +130,12 @@ def main(neural_args):
             print("{}: {}".format(step, np.round(loss, 1)))
 
             beta_q = guide()[0].cpu()
-            pd.DataFrame(beta_q.detach().numpy().T).to_csv(f"results/beta_q_{ix}_{step}.csv")
+            pd.DataFrame(beta_q.detach().numpy()).to_csv(f"results/{ix}/beta_q_{ix}_{step}.csv")
 
             theta_q = guide()[1].cpu()
-            pd.DataFrame(theta_q.detach().numpy().T).to_csv(f"results/theta_q_{ix}_{step}.csv")
+            pd.DataFrame(theta_q.detach().numpy()).to_csv(f"results/{ix}/theta_q_{ix}_{step}.csv")
 
-            pd.DataFrame(losses).to_csv(f"results/loss_{ix}.csv")
+            pd.DataFrame(losses).to_csv(f"results/{ix}/loss_{ix}.csv")
 
         if step % 100 == 0:
             for i in range(num_topic):
@@ -142,8 +158,8 @@ def main(neural_args):
                 except:
                     pass
 
-            pd.DataFrame(alpha, index=alpha_ix).to_csv(f"results/alpha_{ix}_{step}.csv")
-            pd.DataFrame(eta, index=eta_ix).to_csv(f"results/eta_{ix}_{step}.csv")
+            pd.DataFrame(alpha, index=alpha_ix).to_csv(f"results/{ix}/alpha_{ix}_{step}.csv")
+            pd.DataFrame(eta, index=eta_ix).to_csv(f"results/{ix}/eta_{ix}_{step}.csv")
 
         # if step % 500 == 0:
         #     for i in range(num_topic):

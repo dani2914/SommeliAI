@@ -70,6 +70,9 @@ class plainLDA:
 
             X.append(w)
             Theta.append(theta)
+
+        Theta = torch.stack(Theta)
+
         return X, Beta, Theta
 
 
@@ -79,7 +82,7 @@ class plainLDA:
         Beta_q = torch.zeros((self.K, self.V))
         for k in pyro.plate("topics", self.K):
             # eta_q => q for the per-topic word distribution
-            eta_q = pyro.param(f"eta_q_{k}", torch.ones(self.V), constraint=constraints.positive)#/ self.V, torch.rand(self.V),
+            eta_q = pyro.param(f"eta_q_{k}", (1 + 0.01*(2*torch.rand(self.V)-1))/100, constraint=constraints.positive)# #torch.ones(self.V) / self.K, constraint=constraints.positive)#/ self.V, torch.rand(self.V),
             # beta_q => posterior per topic word vec
             Beta_q[k, :] = pyro.sample(f"beta_{k}", dist.Dirichlet(eta_q))
 
@@ -87,7 +90,7 @@ class plainLDA:
         for d in pyro.plate("documents", self.D, subsample_size=self.S):
 
             # alpha_q => q for the per-doc topic vector
-            alpha_q = pyro.param(f"alpha_q_{d}", torch.ones(self.K), constraint=constraints.positive)#/ / self.K, torch.rand(self.K),
+            alpha_q = pyro.param(f"alpha_q_{d}", torch.ones(self.K) / self.K, constraint=constraints.positive)#/ / self.K, torch.rand(self.K),
 
             # theta_q => posterior per-doc topic vector
             theta_q = pyro.sample(f"theta_{d}", dist.Dirichlet(alpha_q))
