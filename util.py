@@ -85,31 +85,31 @@ def clean_stop_punct_digit_n_lower(txt):
 
 
 
-def preprocess_tokens(txt, ngram, custom_stopwords):
+def preprocess_tokens(txt, ngram, pre_stopwords):
     tokens = word_tokenize(txt)
-    stop_words = stop_n_punct_words if custom_stopwords is None \
-        else set(list(stop_n_punct_words) + custom_stopwords)
+    stop_words = stop_n_punct_words if pre_stopwords is None \
+        else set(list(stop_n_punct_words) + pre_stopwords)
 
     if ngram > 1:
         tokens = ["x_____x" if token.lower() in stop_words or re.match(r"^.*\d+.*$", token)
                   else snow.stem(token.lower()) for token in tokens]
     else:
-        tokens = [lm.lemmatize(lm.lemmatize(lm.lemmatize(token.lower()), pos="v"), pos="a") for token in tokens]
+        tokens = [lm.lemmatize(lm.lemmatize(lm.lemmatize(token.lower(), pos="v"), pos="n"), pos="a") for token in tokens]
         tokens = [token for token in tokens if token not in stop_words and re.match(r"^.*\d+.*$", token) is None]
 
     tokens = " ".join(tokens)
 
     return tokens
 
-def preprocess_and_index(tmp_df, ngram=1, custom_stopwords=None):
+def preprocess_and_index(tmp_df, ngram=1, pre_stopwords=None):
 
     print("Preprocessing tokens... (this part is slow)")
     tmp_df["description"] = tmp_df["description"].apply(
-        preprocess_tokens, args=(ngram, custom_stopwords))
+        preprocess_tokens, args=(ngram, pre_stopwords))
 
     print("Building Index and ngram...")
     vectorizer = CountVectorizer(
-        ngram_range=(1, ngram), analyzer="word", strip_accents="unicode")
+        ngram_range=(1, ngram), analyzer="word", strip_accents="unicode", stop_words=pre_stopwords)
     sparse_count_vec = vectorizer.fit_transform(tmp_df["description"])
 
     if ngram > 1:
