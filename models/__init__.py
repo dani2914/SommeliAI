@@ -2,10 +2,12 @@ from .plainlda import plainLDA
 from .vanilda import vaniLDA
 from .vaelda import vaeLDA
 from .supervisedlda import supervisedLDA
+from .sLDA_mcmc import sLDA_mcmc
 
 __all__ = [
     "plainLDA",
     "vaniLDA",
     "vaeLDA",
-    "supervisedLDA"
+    "supervisedLDA",
+    "sLDA_mcmc"
 ]

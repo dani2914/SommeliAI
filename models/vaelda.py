@@ -16,7 +16,8 @@ from pyro.optim import ClippedAdam
 
 
 class vaeLDA:
-    def __init__(self, num_docs, num_words_per_doc_vec, num_topics, num_vocabs, subsample_size):
+    def __init__(self, num_docs, num_words_per_doc,
+                 num_topics, num_vocabs, num_subsample):
         # hyperparameters for the priors
 
         # pyro settings
@@ -24,11 +25,11 @@ class vaeLDA:
         pyro.clear_param_store()
         pyro.enable_validation(True)
 
-        self.num_docs = num_docs
-        self.num_words_per_doc_vec = num_words_per_doc_vec
-        self.num_topics = num_topics
-        self.num_vocabs = num_vocabs
-        self.subsample_size = subsample_size
+        self.D = num_docs
+        self.N = num_words_per_doc
+        self.K = num_topics
+        self.V = num_vocabs
+        self.S = num_subsample
 
     @property
     def loss(self):
@@ -36,32 +37,39 @@ class vaeLDA:
 
     def model(self, data=None):
         # Globals.
-        topic_weights = torch.ones(self.num_topics) / self.num_topics
-        vocab_weights = torch.ones(self.num_vocabs) / self.num_vocabs
-        with pyro.plate("topics", self.num_topics):
-            topic_x_words = pyro.sample("topic_words", dist.Dirichlet(vocab_weights))
+        Beta = []
+        # eta => prior for the per-topic word distributions
+        eta = torch.ones(self.V)
 
-        doc_words = []
-        # Locals
-        for i in pyro.plate("documents", self.num_docs, subsample_size=self.subsample_size):
-            doc = data[i]
-            doc_x_topics = pyro.sample("doc_topics_{}".format(i), dist.Dirichlet(topic_weights))
-            with pyro.plate("words_{}".format(i), self.num_words_per_doc_vec[i]):
-                word_x_topics = pyro.sample("word_topics_{}".format(i), dist.Categorical(doc_x_topics)
-                                            , infer={"enumerate": "parallel"})
-                words = pyro.sample("doc_words_{}".format(i), dist.Categorical(topic_x_words[word_x_topics]),
-                                       obs=doc)
-                doc_words.append(words)
+        # returns t x w matrix
+        for k in pyro.plate("topics", self.D):
+            beta = pyro.sample(f"beta_{k}", dist.Dirichlet(eta))
+            Beta.append(beta.cpu().data.numpy())
 
-        return doc_words, topic_x_words
+        Beta = torch.tensor(Beta)
+        # alpha => prior for the per-doc topic vector
+        alpha = torch.ones(self.K)
 
-    # We will use amortized inference of the local topic variables, achieved by a
-    # multi-layer perceptron. We'll wrap the guide in an nn.Module.
+        # returns d x t matrix
+        Theta = []
+        for d in pyro.plate("documents", self.D, subsample_size=self.S):
+            # theta => per-doc topic vector
+            theta = pyro.sample(f"theta_{d}", dist.Dirichlet(alpha))
+            doc = None if data is None else data[d]
+
+            with pyro.plate(f"words_{d}", self.N[d]):
+                z_assignment = pyro.sample(f"z_assignment_{d}",
+                                           dist.Categorical(theta),
+                                           infer={"enumerate": "parallel"})
+
+                w = pyro.sample(f"w_{d}", dist.Categorical(Beta[z_assignment]), obs=doc)
+
+        return Theta, Beta
 
     def make_predictor(self, args):
-        layer_sizes = ([self.num_vocabs] +
+        layer_sizes = ([self.V] +
                        [int(s) for s in args.layer_sizes.split('-')] +
-                       [self.num_topics])
+                       [self.K])
         logging.info('Creating MLP with sizes {}'.format(layer_sizes))
         layers = []
         for in_size, out_size in zip(layer_sizes, layer_sizes[1:]):
@@ -74,28 +82,33 @@ class vaeLDA:
         return nn.Sequential(*layers)
 
     def parametrized_guide(self, predictor, vocab_count, data=None):
-        topic_words_posterior = pyro.param(
-                "topic_words_posterior",
-                lambda: torch.ones(self.num_vocabs),
-                constraint=constraints.positive)
-        with pyro.plate("topics", self.num_topics):
-            topic_words = pyro.sample("topic_words", dist.Dirichlet(topic_words_posterior))
+        Beta = []
+        for k in pyro.plate("topics", self.D, subsample_size=self.S):
+            # eta_q => q for the per-topic word distribution
+            eta_q = pyro.param(f"eta_q_{k}", torch.ones(self.V),
+                               constraint=constraints.positive)
+            beta = pyro.sample(f"beta_{k}", dist.Dirichlet(eta_q))
+            Beta.append(beta.cpu().data.numpy())
+
+        # eta => prior for regression coefficient
+        # weights_loc = pyro.param('weights_loc', torch.randn(self.K))
+        # weights_scale = pyro.param('weights_scale', torch.eye(self.K),
+        #                            constraint=constraints.positive)
+        # eta = pyro.sample("eta", dist.MultivariateNormal(loc=weights_loc, covariance_matrix=weights_scale))
+        # sigma => prior for regression variance
 
         pyro.module("predictor", predictor)
         count_words = 0
-        for i in pyro.plate("documents", self.num_docs, subsample_size=self.subsample_size):
-            words = list(set([int(word)for word in data[i]]))
+
+        for d in pyro.plate("documents", self.D, subsample_size=self.S):
+            words = list(set([int(word) for word in data[d]]))
             # The neural network will operate on histograms rather than word
             # index vectors, so we'll convert the raw data to a histogram.
-            counts = np.zeros((1, self.num_vocabs))
+            counts = np.zeros((1, self.V))
             for j in range(len(words)):
                 counts[0, words[j]] = vocab_count[count_words + j]
             counts = torch.tensor(counts, dtype=torch.float)
             doc_topics = predictor(counts)
-            doc_x_topics = pyro.sample("doc_topics_{}".format(i), dist.Delta(doc_topics, event_dim=1))
-            count_words += len(words)
-            with pyro.plate("words_{}".format(i), self.num_words_per_doc_vec[i]):
-                word_x_topics = pyro.sample("word_topics_{}".format(i), dist.Categorical(doc_x_topics)
-                                            , infer={"enumerate": "parallel"})
+            alpha = pyro.sample(f"alpha_{d}", dist.Delta(doc_topics, event_dim=1))
 
-        return topic_words
+        return Beta

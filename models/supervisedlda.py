@@ -14,7 +14,7 @@ from pyro.infer.autoguide import AutoDiagonalNormal
 import pyro
 import pyro.distributions as dist
 
-from pyro.infer import SVI, Trace_ELBO
+from pyro.infer import SVI, TraceMeanField_ELBO, Trace_ELBO
 from pyro.optim import ClippedAdam
 
 
@@ -35,25 +35,31 @@ class supervisedLDA():
     def loss(self):
         return Trace_ELBO(max_plate_nesting=2)
 
-    def model(self, data=None, label=None):
+    def model(self, data=None, label=None, record=False):
         """pyro model for lda"""
+
+        Beta = []
         # eta => prior for the per-topic word distributions
-        eta = torch.ones(self.V) / self.V
-
+        # eta = 1 + 0.01 * (2 * torch.rand(self.V) - 1)
+        eta = torch.ones(self.V) / 5
         # returns t x w matrix
-        with pyro.plate("topics", self.K):
-            beta = pyro.sample("beta", dist.Dirichlet(eta))
+        for k in pyro.plate("topics", self.D, subsample_size=self.S):
+            beta = pyro.sample(f"beta_{k}", dist.Dirichlet(eta))
+            Beta.append(beta.data.numpy())
 
+        Beta = torch.tensor(Beta)
         # alpha => prior for the per-doc topic vector
-        alpha = torch.ones(self.K) / self.K
+        alpha = torch.ones(self.K) / 5
 
         # eta => prior for regression coefficient
         weights_loc = torch.randn(self.K)
         weights_scale = torch.eye(self.K)
-        eta = pyro.sample("eta", dist.MultivariateNormal(loc=weights_loc, covariance_matrix=weights_scale))
+        # eta = pyro.sample("eta", dist.MultivariateNormal(loc=weights_loc, covariance_matrix=weights_scale))
+        eta = torch.randn(self.K) * 2 - 1
         # sigma => prior for regression variance
         sigma_loc = torch.tensor(1.)
-        sigma = pyro.sample("sigma", dist.Normal(sigma_loc, torch.tensor(0.05)))
+        sigma = torch.tensor(1.)
+        # sigma = pyro.sample("sigma", dist.Normal(sigma_loc, torch.tensor(0.05)))
 
         # returns d x t matrix
         Theta = []
@@ -61,7 +67,6 @@ class supervisedLDA():
         for d in pyro.plate("documents", self.D, subsample_size=self.S):
             # theta => per-doc topic vector
             theta = pyro.sample(f"theta_{d}", dist.Dirichlet(alpha))
-
             doc = None if data is None else data[d]
             z_bar = torch.zeros(self.K)
 
@@ -70,47 +75,57 @@ class supervisedLDA():
                                            dist.Categorical(theta),
                                            infer={"enumerate": "parallel"})
 
-                w = pyro.sample(f"w_{d}", dist.Categorical(beta[z_assignment]), obs=doc)
+                w = pyro.sample(f"w_{d}", dist.Categorical(Beta[z_assignment]), obs=doc)
 
-            for z in z_assignment:
-                z_bar[z] += 1
-            z_bar /= self.N[d]
+            # for z in z_assignment:
+            #     z_bar[z] += 1
+            # z_bar /= self.N[d]
+            # mean = torch.dot(eta, z_bar)
+            # y_label = pyro.sample(f"doc_label_{d}", dist.Normal(mean, sigma), obs=torch.tensor([label[d]]))
+            # y_list.append(y_label)
 
-            mean = torch.dot(eta, z_bar)
-            y_label = pyro.sample(f"doc_label_{d}", dist.Normal(mean, sigma), obs=torch.tensor([label[d]]))
-        y_list.append(y_label)
-
-        return Theta, beta, y_list
+        return Theta, Beta, y_list
 
     def guide(self, data=None, label=None):
 
-        with pyro.plate("topics", self.K):
+        Beta = []
+        Theta = []
+        docs = []
+        for k in pyro.plate("topics", self.D, subsample_size=self.S):
             # eta_q => q for the per-topic word distribution
-            eta_q = pyro.param("eta_q", torch.rand(self.V),
+            eta_q = pyro.param(f"eta_q_{k}", torch.ones(self.V) / 5,
                                constraint=constraints.positive)
-            beta = pyro.sample("beta", dist.Dirichlet(eta_q))
+            beta = pyro.sample(f"beta_{k}", dist.Dirichlet(eta_q))
+            Beta.append(beta.data.numpy())
 
         # eta => prior for regression coefficient
         weights_loc = pyro.param('weights_loc', torch.randn(self.K))
         weights_scale = pyro.param('weights_scale', torch.eye(self.K),
                                    constraint=constraints.positive)
-        eta = pyro.sample("eta", dist.MultivariateNormal(loc=weights_loc, covariance_matrix=weights_scale))
-        # sigma => prior for regression variance
-        sigma_loc = pyro.param('bias', torch.tensor(1.), constraint=constraints.positive)
-        sigma = pyro.sample("sigma", dist.Normal(sigma_loc, torch.tensor(0.05)))
+        # eta = pyro.sample("eta", dist.MultivariateNormal(loc=weights_loc, covariance_matrix=weights_scale))
+        # # sigma => prior for regression variance
+        #
+        # # eta = pyro.param('coef', torch.randn(self.K) * 2 - 1)
+        # sigma_loc = pyro.param('bias', torch.randn(1), constraint=constraints.positive)
+        # sigma = pyro.sample("sigma", dist.Normal(sigma_loc, torch.tensor(0.05)))
+        # #sigma = pyro.param('bias', torch.tensor(1.), constraint=constraints.positive)
+        eta = pyro.param('coef', torch.randn(self.K) * 2 - 1)
+        sigma = pyro.param('bias', torch.tensor(1.), constraint=constraints.positive)
 
         for d in pyro.plate("documents", self.D, subsample_size=self.S):
-            alpha_q = pyro.param(f"alpha_q_{d}", torch.ones(self.K),
+            alpha_q = pyro.param(f"alpha_q_{d}", torch.ones(self.K) / 5,
                                  constraint=constraints.positive)
             theta_q = pyro.sample(f"theta_{d}", dist.Dirichlet(alpha_q))
             z_bar = torch.zeros(self.K)
             with pyro.plate(f"words_{d}", self.N[d]):
                 z_assignment = pyro.sample(f"z_assignment_{d}", dist.Categorical(theta_q))
 
-            for z in z_assignment:
-                z_bar[z] += 1
-            z_bar /= self.N[d]
+            # for z in z_assignment:
+            #     z_bar[z] += 1
+            # z_bar /= self.N[d]
+            #
+            # mean = torch.dot(eta, z_bar)
+            # docs.append(label[d])
+            # Theta.append(theta_q)
 
-            mean = torch.dot(eta, z_bar)
-
-        return beta, mean, sigma
+        return Beta, Theta, eta, sigma, docs

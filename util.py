@@ -60,15 +60,6 @@ def filter_by_topic(tmp_df, keep_top_n_topics=0, min_count_threshold=0):
 
     return tmp_df
 
-def remove_duplicate(txt):
-    from collections import defaultdict
-    word_count = defaultdict(int)
-    words = txt.split(" ")
-    for word in words:
-        word_count[word] += 1
-
-    return " ".join(word_count.keys())
-
 
 def remove_duplicate(txt):
     from collections import defaultdict
@@ -87,12 +78,11 @@ def clean_stop_punct_digit_n_lower(txt):
     token = word_tokenize(txt)
     #token = lemmatizer.lemmatize(token)
 
-    clean_token = [lemmatizer.lemmatize(word.lower()) for word in token if word.lower()
+    clean_token = [word.lower() for word in token if word.lower()
                    not in stop_n_punct_words and re.match(r"^.*\d+.*$", word) is None
                    and len(word) >= 4 and "\'" not in word and not word.isnumeric()]
 
     return " ".join(clean_token)
-
 
 
 def preprocess_tokens(txt, ngram, custom_stopwords):
@@ -110,6 +100,7 @@ def preprocess_tokens(txt, ngram, custom_stopwords):
     tokens = " ".join(tokens)
 
     return tokens
+
 
 def preprocess_and_index(tmp_df, ngram=1, custom_stopwords=None):
 
@@ -180,7 +171,6 @@ def preprocess_and_index(tmp_df, ngram=1, custom_stopwords=None):
     return tmp_df, indexed_txt_list, filtered_dict, vocab_count
 
 
-
 def preprocess(tmp_df, preprocess=False):
     """ removing stop words, punctuations, digits and make all lower case """
 
@@ -201,7 +191,7 @@ def conv_word_to_indexed_txt(txt_vec):
 
     # transform words into integer indexes, comes out as n x m
     # where n = # txt doc, m = # unique words for whole universe
-    vectorizer = CountVectorizer(stop_words=customised_stopword, analyzer='word')
+    vectorizer = CountVectorizer(analyzer='word')
     #CountVectorizer(ngram_range=(1,2), analyzer='word')
     sparse_count_vec = vectorizer.fit_transform(txt_vec)
 
@@ -303,6 +293,7 @@ def get_all_supervised_requirements(fname=None, max_samples=0, max_annotations=5
         wine = fetch_dataset()
 
     clean_df = preprocess(wine, preprocess=True)
+    clean_df = preprocess_and_index(clean_df, 2, customised_stopword)
     clean_df = clean_df.dropna()  # some countries are nan
 
     if max_samples > 0:
