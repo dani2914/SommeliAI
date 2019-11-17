@@ -1,12 +1,9 @@
-import numpy as np
 import torch
 from torch.distributions import constraints
-
+import numpy as np
 import pyro
 import pyro.distributions as dist
-
-from pyro.infer import SVI, TraceMeanField_ELBO, Trace_ELBO, TraceEnum_ELBO
-
+from pyro.infer import SVI, TraceGraph_ELBO
 
 class supervisedLDA():
     def __init__(self, num_docs, num_words_per_doc,
@@ -23,7 +20,7 @@ class supervisedLDA():
 
     @property
     def loss(self):
-        return Trace_ELBO(max_plate_nesting=2)
+        return TraceGraph_ELBO(max_plate_nesting=2)
 
     def model(self, data=None, label=None):
         """pyro model for lda"""
@@ -117,11 +114,21 @@ class supervisedLDA():
             beta_q = pyro.sample(f"beta", dist.Dirichlet(lambda_q))
 
             # eta = pyro.sample("eta", dist.Gamma(eta_posterior, 1.))
+
+            # eta_q = pyro.param(f"eta_q_{k}", torch.ones(self.V) / self.V,
+            #                    constraint=constraints.positive)
+            # beta[k, :] = pyro.sample(f"beta_{k}", dist.Dirichlet(eta_q))
+
         # eta => prior for regression coefficient
         weights_loc = pyro.param('weights_loc', torch.randn(self.K) * 2 - 1)
         weights_scale = pyro.param('weights_scale', torch.eye(self.K),
                                    constraint=constraints.positive)
-        eta = pyro.sample("eta", dist.MultivariateNormal(loc=weights_loc, covariance_matrix=weights_scale))
+        eta = pyro.sample("eta",
+                          dist.MultivariateNormal(
+                              loc=weights_loc,
+                              covariance_matrix=weights_scale
+                          )
+                          )
         # sigma => prior for regression variance
 
         # eta = pyro.param('coef', torch.randn(self.K) * 2 - 1)

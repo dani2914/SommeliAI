@@ -32,9 +32,6 @@ from models import (
 
 
 def main(neural_args):
-    """ main function """
-
-    # CONSTANTS
     ADAM_LEARN_RATE = 1e-3
     TESTING_SUBSIZE = 1000 #use None if want to use full dataset
     SUBSAMPLE_SIZE = 100
@@ -48,7 +45,6 @@ def main(neural_args):
         torch.set_default_tensor_type("torch.cuda.FloatTensor")
     else:
         torch.set_default_tensor_type("torch.DoubleTensor")
-
 
     full_df = util.fetch_dataset()
 
