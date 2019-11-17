@@ -22,8 +22,6 @@ from nltk import word_tokenize
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy import sparse
 
-
-
 lemmatizer = WordNetLemmatizer()
 snow = SnowballStemmer('english')
 
