@@ -1,20 +1,13 @@
-import pyro.distributions as dist
-from pyro.infer import TraceEnum_ELBO
-import argparse
-import functools
-import numpy as np
-import logging
-import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
-import util
+
 import torch
 from torch import nn
 from torch.distributions import constraints
-
+import numpy as np
 import pyro
 import pyro.distributions as dist
-from pyro.infer import SVI, TraceMeanField_ELBO
+from pyro.infer import SVI, TraceEnum_ELBO
 from pyro.optim import ClippedAdam
+
 
 class plainLDA:
 
@@ -33,17 +26,17 @@ class plainLDA:
 
     @property
     def loss(self):
-        return TraceMeanField_ELBO(max_plate_nesting=2)
+        return TraceEnum_ELBO(max_plate_nesting=2)
 
     def model(self, doc_list=None):
         """pyro model for lda"""
         # eta => prior for the per-topic word distributions
         eta = torch.ones(self.V) / self.V
 
-        # returns topic x vocab matrix
-        with pyro.plate("topics", self.K):
+        Beta = torch.zeros((self.K, self.V))
+        for k in pyro.plate("topics", self.K):
             # beta => per topic word vec
-            beta = pyro.sample("beta", dist.Dirichlet(eta))
+            Beta[k, :] = pyro.sample(f"beta_{k}", dist.Dirichlet(eta))
 
         # alpha => prior for the per-doc topic vector
         alpha = torch.ones(self.K) / self.K
@@ -56,43 +49,48 @@ class plainLDA:
 
             doc = None if doc_list is None else doc_list[d]
             with pyro.plate(f"words_{d}", self.N[d]):
-
                 # assign a topic
                 z_assignment = pyro.sample(f"z_assignment_{d}",
-                                            dist.Categorical(theta),
-                                            infer={"enumerate": "parallel"})
+                                           dist.Categorical(theta))
                 # from that topic vec, select a word
-                w = pyro.sample(f"w_{d}", dist.Categorical(beta[z_assignment]), obs=doc)
+                w = pyro.sample(f"w_{d}", dist.Categorical(Beta[z_assignment]), obs=y)
 
             X.append(w)
             Theta.append(theta)
-        return X, beta, Theta
 
+        Theta = torch.stack(Theta)
+
+        return X, Beta, Theta
 
     def guide(self, doc_list=None):
         """pyro guide for lda inference"""
 
-        with pyro.plate("topics", self.K):
+        Beta_q = torch.zeros((self.K, self.V))
+        for k in pyro.plate("topics", self.K):
             # eta_q => q for the per-topic word distribution
-            eta_q = pyro.param("eta_q", torch.rand(self.V),
-                               constraint=constraints.positive)
+            eta_q = pyro.param(f"eta_q_{k}", (1 + 0.01*(2*torch.rand(self.V)-1)),
+                               constraint=constraints.positive)  # #torch.ones(self.V) / self.K, constraint=constraints.positive)#/ self.V, torch.rand(self.V),
             # beta_q => posterior per topic word vec
-            beta_q = pyro.sample("beta", dist.Dirichlet(eta_q))
+            Beta_q[k, :] = pyro.sample(f"beta_{k}", dist.Dirichlet(eta_q))
 
         Theta_q = []
         for d in pyro.plate("documents", self.D, subsample_size=self.S):
-
             # alpha_q => q for the per-doc topic vector
-            alpha_q = pyro.param(f"alpha_q_{d}", torch.rand(self.K),
-                                 constraint=constraints.positive)
-
+            alpha_q = pyro.param(f"alpha_q_{d}", torch.ones(self.K) / self.K,
+                                 constraint=constraints.positive)  # / / self.K, torch.rand(self.K),
             # theta_q => posterior per-doc topic vector
             theta_q = pyro.sample(f"theta_{d}", dist.Dirichlet(alpha_q))
+            phi_q = pyro.param(f"phi_{d}", dist.Dirichlet(alpha_q))
 
             with pyro.plate(f"words_{d}", self.N[d]):
                 # assign a topic
-                pyro.sample(f"z_assignment_{d}", dist.Categorical(theta_q))
+                pyro.sample(f"z_assignment_{d}", dist.Categorical(phi_q))
+
+            assert not any(np.isnan(alpha_q.detach().numpy()))
+            assert not any(np.isnan(theta_q.detach().numpy()))
 
             Theta_q.append(theta_q)
 
-        return beta_q, Theta_q
+        Theta_q = torch.stack(Theta_q)
+
+        return Beta_q, Theta_q

@@ -8,7 +8,6 @@ import util
 import torch
 from torch import nn
 from torch.distributions import constraints
-
 import pyro
 import pyro.distributions as dist
 from pyro.infer import SVI, TraceEnum_ELBO
@@ -35,36 +34,34 @@ class vaeLDA:
     def loss(self):
         return TraceEnum_ELBO(max_plate_nesting=2)
 
-    def model(self, data=None):
-        # Globals.
-        Beta = []
+    def model(self, doc_list=None):
+        """pyro model for lda"""
         # eta => prior for the per-topic word distributions
-        eta = torch.ones(self.V)
+        eta = torch.ones(self.V) / self.V
 
-        # returns t x w matrix
-        for k in pyro.plate("topics", self.D):
-            beta = pyro.sample(f"beta_{k}", dist.Dirichlet(eta))
-            Beta.append(beta.cpu().data.numpy())
+        with pyro.plate("topics", self.K):
+            alpha_q = pyro.sample(f"alpha", dist.Gamma(1. / self.K, 1.))
+            # beta => per topic word vec
+            Beta = pyro.sample(f"beta", dist.Dirichlet(eta))
 
-        Beta = torch.tensor(Beta)
-        # alpha => prior for the per-doc topic vector
-        alpha = torch.ones(self.K)
-
-        # returns d x t matrix
-        Theta = []
+        X, Theta = [], []
         for d in pyro.plate("documents", self.D, subsample_size=self.S):
             # theta => per-doc topic vector
-            theta = pyro.sample(f"theta_{d}", dist.Dirichlet(alpha))
-            doc = None if data is None else data[d]
+            theta = pyro.sample(f"theta_{d}", dist.Dirichlet(alpha_q))
 
-            with pyro.plate(f"words_{d}", self.N[d]):
-                z_assignment = pyro.sample(f"z_assignment_{d}",
+            doc = None if doc_list is None else doc_list[d]
+            for t, y in pyro.markov(enumerate(doc_list[d])):
+                # assign a topic
+                z_assignment = pyro.sample(f"z_assignment_{d}_{t}",
                                            dist.Categorical(theta),
                                            infer={"enumerate": "parallel"})
+                # from that topic vec, select a word
+                w = pyro.sample(f"w_{d}_{t}", dist.Categorical(Beta[z_assignment]), obs=doc)
 
-                w = pyro.sample(f"w_{d}", dist.Categorical(Beta[z_assignment]), obs=doc)
+            X.append(w)
+            Theta.append(theta)
 
-        return Theta, Beta
+        return X, Beta, Theta
 
     def make_predictor(self, args):
         layer_sizes = ([self.V] +
@@ -82,33 +79,34 @@ class vaeLDA:
         return nn.Sequential(*layers)
 
     def parametrized_guide(self, predictor, vocab_count, data=None):
-        Beta = []
-        for k in pyro.plate("topics", self.D, subsample_size=self.S):
+        """pyro guide for lda inference"""
+        Alpha = []
+        topic_weights_posterior = pyro.param(
+            "topic_weights_posterior",
+            lambda: torch.ones(self.K),
+            constraint=constraints.positive)
+        topic_words_posterior = pyro.param(
+            "topic_words_posterior",
+            lambda: torch.ones((self.K, self.V)),
+            constraint=constraints.greater_than(0.5))
+        Beta_q = torch.zeros((self.K, self.V))
+        with pyro.plate("topics", self.K):
             # eta_q => q for the per-topic word distribution
-            eta_q = pyro.param(f"eta_q_{k}", torch.ones(self.V),
-                               constraint=constraints.positive)
-            beta = pyro.sample(f"beta_{k}", dist.Dirichlet(eta_q))
-            Beta.append(beta.cpu().data.numpy())
-
-        # eta => prior for regression coefficient
-        # weights_loc = pyro.param('weights_loc', torch.randn(self.K))
-        # weights_scale = pyro.param('weights_scale', torch.eye(self.K),
-        #                            constraint=constraints.positive)
-        # eta = pyro.sample("eta", dist.MultivariateNormal(loc=weights_loc, covariance_matrix=weights_scale))
-        # sigma => prior for regression variance
+            alpha_q = pyro.sample("alpha", dist.Gamma(topic_weights_posterior, 1.))
+            Beta_q = pyro.sample("beta", dist.Dirichlet(topic_words_posterior))
 
         pyro.module("predictor", predictor)
         count_words = 0
 
         for d in pyro.plate("documents", self.D, subsample_size=self.S):
-            words = list(set([int(word) for word in data[d]]))
             # The neural network will operate on histograms rather than word
             # index vectors, so we'll convert the raw data to a histogram.
-            counts = np.zeros((1, self.V))
-            for j in range(len(words)):
-                counts[0, words[j]] = vocab_count[count_words + j]
+            counts = [[0 for i in range(self.V)]]
+            for j in data[d]:
+                counts[0][int(j)] += 1
             counts = torch.tensor(counts, dtype=torch.float)
             doc_topics = predictor(counts)
-            alpha = pyro.sample(f"alpha_{d}", dist.Delta(doc_topics, event_dim=1))
+            alpha = pyro.sample(f"theta_{d}", dist.Delta(doc_topics, event_dim=1))
+            Alpha.append(alpha)
 
-        return Beta
+        return Beta_q, Alpha

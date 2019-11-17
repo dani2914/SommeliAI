@@ -92,9 +92,9 @@ def preprocess_tokens(txt, ngram, custom_stopwords):
 
     if ngram > 1:
         tokens = ["x_____x" if token.lower() in stop_words or re.match(r"^.*\d+.*$", token)
-                  else snow.stem(token.lower()) for token in tokens]
+                  else token.lower() for token in tokens]
     else:
-        tokens = [snow.stem(token.lower()) for token in tokens if token
+        tokens = [token.lower() for token in tokens if token
                    not in stop_words and re.match(r"^.*\d+.*$", token) is None]
 
     tokens = " ".join(tokens)
