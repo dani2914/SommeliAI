@@ -10,7 +10,7 @@ import torch
 import re
 import string
 
-from customised_stopword import customised_stopword
+#from customised_stopword import customised_stopword
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.stem import SnowballStemmer
@@ -348,3 +348,18 @@ def get_all_supervised_requirements(fname=None, max_samples=0, max_annotations=5
         docs_counts[e, :len(d)] = d
 
     return clean_df, docs_words, docs_counts, num_topics, num_vocab, min_acceptable_words
+
+
+
+
+
+def conv_tensorList_to_matrix(tensor_list):
+    tensor_list = indexed_txt_list
+    tens_len = [len(tens) for tens in tensor_list]
+    max_tens_len = np.max(ind_len)
+
+    nan_matrix = torch.tensor(float('nan')).repeat(len(tensor_list), max_tens_len)
+    for i in range(tensor_list):
+        nan_matrix[i, 0:]
+
+        

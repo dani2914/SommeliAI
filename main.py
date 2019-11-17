@@ -27,22 +27,30 @@ from models import (
 #pyro.enable_validation(False)
 
 
-def main(neural_args):
-    """ main function """
+if __name__ == "__main__":
+    # parser = argparse.ArgumentParser(description="Amortized Latent Dirichlet Allocation")
+
+    # parser.add_argument("-n", "--num-steps", default=1000, type=int)
+    # parser.add_argument("-l", "--layer-sizes", default="128-128")
+    # parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
+    # parser.add_argument('--jit', action='store_true')
+    # neural_args = parser.parse_args()
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
     TESTING_SUBSIZE = None #use None if want to use full dataset
     SUBSAMPLE_SIZE = 100
-    USE_CUDA = True
+    USE_CUDA = False
     ix = round(time.time())
     os.mkdir(f"results/{ix}")
 
-    print("alpha: 1/10; eta: 1/100")
+    print("alpha: 1/10; eta: rand 1")
     print(ix)
 
     if USE_CUDA:
-        torch.set_default_tensor_type("torch.cuda.FloatTensor")
+        torch.set_default_tensor_type("torch.cuda.DoubleTensor")
+    else:
+        torch.set_default_tensor_type("torch.DoubleTensor")
 
     full_df = util.fetch_dataset()
 
@@ -130,10 +138,10 @@ def main(neural_args):
             print("{}: {}".format(step, np.round(loss, 1)))
 
             beta_q = guide()[0].cpu()
-            pd.DataFrame(beta_q.detach().numpy()).to_csv(f"results/{ix}/beta_q_{ix}_{step}.csv")
+            pd.DataFrame(beta_q.detach().numpy().T).to_csv(f"results/{ix}/beta_q_{ix}_{step}.csv")
 
             theta_q = guide()[1].cpu()
-            pd.DataFrame(theta_q.detach().numpy()).to_csv(f"results/{ix}/theta_q_{ix}_{step}.csv")
+            pd.DataFrame(theta_q.detach().numpy().T).to_csv(f"results/{ix}/theta_q_{ix}_{step}.csv")
 
             pd.DataFrame(losses).to_csv(f"results/{ix}/loss_{ix}.csv")
 
@@ -143,23 +151,23 @@ def main(neural_args):
                 print("topic %s" % i)
                 print([word[0] for word in vocab[sorted_words_ix][-10:]])
 
-        if step % 100 == 0:
-            alpha, alpha_ix = [], []
-            eta, eta_ix = [], []
-            for i in range(num_txt):
-                try:
-                    tensor = pyro.param(f"alpha_q_{i}")
-                    alpha.append(tensor.detach().cpu().numpy())
-                    alpha_ix.append(i)
+        # if step % 100 == 0:
+        #     alpha, alpha_ix = [], []
+        #     eta, eta_ix = [], []
+        #     for i in range(num_txt):
+        #         try:
+        #             tensor = pyro.param(f"alpha_q_{i}")
+        #             alpha.append(tensor.detach().cpu().numpy())
+        #             alpha_ix.append(i)
 
-                    tensor = pyro.param(f"eta_q_{i}")
-                    eta.append(tensor.detach().cpu().numpy())
-                    eta_ix.append(i)
-                except:
-                    pass
+        #             tensor = pyro.param(f"eta_q_{i}")
+        #             eta.append(tensor.detach().cpu().numpy())
+        #             eta_ix.append(i)
+        #         except:
+        #             pass
 
-            pd.DataFrame(alpha, index=alpha_ix).to_csv(f"results/{ix}/alpha_{ix}_{step}.csv")
-            pd.DataFrame(eta, index=eta_ix).to_csv(f"results/{ix}/eta_{ix}_{step}.csv")
+        #     pd.DataFrame(alpha, index=alpha_ix).to_csv(f"results/{ix}/alpha_{ix}_{step}.csv")
+        #     pd.DataFrame(eta, index=eta_ix).to_csv(f"results/{ix}/eta_{ix}_{step}.csv")
 
         # if step % 500 == 0:
         #     for i in range(num_topic):
@@ -167,6 +175,37 @@ def main(neural_args):
         #         print("topic %s" % i)
         #         print([word[0] for word in vocab[sorted_words_ix][-10:]])
 
+        if step % 100 == 0:
+            lamda, lamda_ix = [], []
+            gamma, gamma_ix = [], []
+            phi, phi_ix = [], []
+            for i in range(num_txt):
+                try:
+                    tensor = pyro.param(f"lamda_q_{i}")
+                    lamda.append(tensor.detach().cpu().numpy())
+                    lamda_ix.append(i)
+                except:
+                    pass
+
+                try:
+                    tensor = pyro.param(f"gamma_q_{i}")
+                    gamma.append(tensor.detach().cpu().numpy())
+                    gamma_ix.append(i)
+                except:
+                    pass
+
+                try:
+                    tensor = pyro.param(f"phi_q_{i}")
+                    phi.append(tensor.detach().cpu().numpy())
+                    phi_ix.append(i)
+                except:
+                    pass
+
+
+            pd.DataFrame(lamda, index=lamda_ix).to_csv(f"results/{ix}/lamda_{ix}_{step}.csv")
+            pd.DataFrame(gamma, index=gamma_ix).to_csv(f"results/{ix}/gamma_{ix}_{step}.csv")
+            pd.DataFrame(phi, index=phi_ix).to_csv(f"results/{ix}/phi_{ix}_{step}.csv")
+            pd.DataFrame(lamdaT, index=lamda_ix).to_csv(f"results/{ix}/lamdaT_{ix}_{step}.csv")
 
 
     # posterior_topics_x_words = dist.Dirichlet(pyro.param("phi")).sample()
@@ -205,14 +244,3 @@ def main(neural_args):
 #     tmp_df = posterior_topics_x_words
 #     pd.DataFrame(tmp_df.detach().numpy().T).to_csv(f"results/beta_q_{ix}.csv")
 #     pd.DataFrame(vocab).to_csv(f"results/dict_{ix}.csv")
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Amortized Latent Dirichlet Allocation")
-
-    parser.add_argument("-n", "--num-steps", default=1000, type=int)
-    parser.add_argument("-l", "--layer-sizes", default="128-128")
-    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
-    parser.add_argument('--jit', action='store_true')
-    args = parser.parse_args()
-    main(args)
