@@ -23,24 +23,25 @@ def lda_inference(doc, lda, adagrad=False):
     rho = 1e-3 # learning rate
     if adagrad:
         epsilon = 1e-6 # fudge factor
-        g_phi = np.zeros([doc.length, lda.num_topics])
+        g_phi = np.zeros([doc.pdblength, lda.num_topics])
         g_var_gamma = np.zeros([lda.num_topics])
 
     # variational parameters
 
     phi = np.ones([doc.length, lda.num_topics]) \
             / lda.num_topics  # N * k matrix 
-    var_gamma = np.ones([lda.num_topics]) * lda.alpha \
-             + doc.total / float(lda.num_topics)
+    var_gamma = lda.var_gamma[doc.index, :]
 
     likelihood_old = 0
 
+    # integrate out phi at each step
     var_ite = 0
-    while (converged > 1e-3 and var_ite < 1e3):
+    while (converged > 1e-3 and var_ite < 1e1):
         var_ite += 1
 
         # sample S theta
         sample_theta = np.random.dirichlet(var_gamma, S)
+        sample_theta = (sample_theta + 1e-2 / S) / (1 + 1e-2)
 
         # sample S z for each word n
         sample_zs = np.zeros([doc.length, S], dtype=np.int32)
@@ -85,11 +86,10 @@ def lda_inference(doc, lda, adagrad=False):
         if adagrad:
             g_var_gamma += grad_gamma ** 2
             grad_gamma = grad_gamma / (np.sqrt(g_var_gamma) + epsilon)
-        var_gamma = var_gamma + rho * grad_gamma 
-        lda.var_gamma = var_gamma
+        var_gamma = np.clip(var_gamma + rho * grad_gamma, 1e-2, np.inf)
+        lda.var_gamma[doc.index, :] = var_gamma
 
         # for phi
-
         # for explicit evaluation of expectation
         # dig = digamma(var_gamma)
         # var_gamma_sum = np.sum(var_gamma)
@@ -135,42 +135,62 @@ def lda_inference(doc, lda, adagrad=False):
                 if phi[n][j] < 0: # bound phi
                     phi[n][j] = 0
                 phi[n] /= np.sum(phi[n]) # normalization
+                if np.isnan(phi).any():
+                    phi[np.isnan(phi).any(1), :] = 1./ lda.num_topics
 
-        # update betas
-        for k in range(lda.num_topics):
-            var_lambda = lda.var_lambda[k, :]
-            sample_beta = np.random.dirichlet(var_lambda, S)
-
-            dig = digamma(var_lambda)
-            var_lambda_sum = np.sum(var_lambda)
-            digsum = digamma(var_lambda_sum)
-
-            ln_beta = np.log(sample_beta) # S * k matrix
-
-            dqdb = ln_beta - dig + digsum  # S * k matrix
-
-            # ln_p_w = ln_beta[:, doc.words[n]] # S length vector
-
-            # monte-carlo estimated expectation
-            E_p_w_z_beta = (ln_beta * (sample_zs == k).sum(0)[:, np.newaxis]).mean(1)
-
-            ln_p_beta = dirichlet.logpdf(np.transpose(sample_beta), \
-                                    [lda.eta] * lda.num_terms) 
-                                    # S length vector
-            ln_q_beta = dirichlet.logpdf(np.transpose(sample_beta), var_lambda)
-                                    # S length vector
-
-            grad_lambda = np.average(dqdb * np.reshape(ln_p_beta - ln_q_beta + ln_p_w, (S, 1)), 0)
-            lda.var_lambda[k, :] = np.clip(var_lambda + rho * grad_lambda, 1e-1, np.inf)
-            lda.log_prob_w[k, :] = dirichlet_expectation(lda.var_lambda[k, :])
-
-        # compute likelihood
-
+        # assess convergence
         likelihood = compute_likelihood(doc, lda, phi, var_gamma)
         assert(not isnan(likelihood))
         converged = abs((likelihood_old - likelihood) / likelihood_old)
         likelihood_old = likelihood
         # print likelihood, converged
+
+    # sample S theta from the updated gamma
+    sample_theta = np.random.dirichlet(var_gamma, S)
+    sample_theta = (sample_theta + 1e-2 / S) / (1 + 1e-2)
+
+    # sample S z for each word n
+    sample_zs = np.zeros([doc.length, S], dtype=np.int32)
+    for n in range(doc.length):
+        # sample S z for each word
+        sample_z = np.random.multinomial(1, phi[n,:], S) # S * k matrix
+        which_j = np.argmax(sample_z, 1) # S length vector
+        sample_zs[n,:] = which_j
+
+    # update betas
+    for k in range(lda.num_topics):
+        var_lambda = lda.var_lambda[k, :]
+        sample_beta = np.random.dirichlet(var_lambda, S)
+
+        dig = digamma(var_lambda)
+        var_lambda_sum = np.sum(var_lambda)
+        digsum = digamma(var_lambda_sum)
+
+        ln_beta = np.log(sample_beta) # S * k matrix
+
+        dqdb = ln_beta - dig + digsum  # S * k matrix
+
+        # ln_p_w = ln_beta[:, doc.words[n]] # S length vector
+
+        # monte-carlo estimated expectation
+        E_p_w_z_beta = np.zeros(S) # S length vector
+        for sample_id in range(S):
+            cur_ln_beta = ln_beta[sample_id,:]
+            sampled_ln_beta = 0.
+            for n in range(doc.length):
+                which_j = sample_zs[n,:]
+                sampled_ln_beta += ln_beta[which_j == k, doc.words[n]].sum() # (doc.counts[n] * list(cur_ln_theta[which_j]))
+            E_p_w_z_beta[sample_id] = sampled_ln_beta / doc.length
+
+        ln_p_beta = dirichlet.logpdf(np.transpose(sample_beta), \
+                                [lda.eta] * lda.num_terms) 
+                                # S length vector
+        ln_q_beta = dirichlet.logpdf(np.transpose(sample_beta), var_lambda)
+                                # S length vector
+
+        grad_lambda = np.average(dqdb * np.reshape(ln_p_beta - ln_q_beta + ln_p_w, (S, 1)), 0)
+        lda.var_lambda[k, :] = np.clip(var_lambda + rho * grad_lambda, 1e-1, np.inf)
+        lda.log_prob_w[k, :] = dirichlet_expectation(lda.var_lambda[k, :])
     return likelihood
 
 def compute_likelihood(doc, lda, phi, var_gamma):

@@ -6,11 +6,12 @@ class document:
         self.counts = []
         self.words = []
         self.total = 0
+        self.index = -1
 
 def read_corpus(data_file):
     corpus = []
     with open(data_file, "r") as dfile:
-        for doc_abs in dfile.readlines():
+        for e, doc_abs in enumerate(dfile.readlines()):
             parser = doc_abs.split()
             doc = document(int(parser[0]))
             for pair in parser[1:]:
@@ -18,6 +19,7 @@ def read_corpus(data_file):
                 doc.words.append(wid)
                 doc.counts.append(wcnt)
                 doc.total += wcnt
+                doc.index = e
             assert(len(doc.words) == doc.length)
             corpus.append(doc)
     return corpus
