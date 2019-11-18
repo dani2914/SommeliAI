@@ -70,7 +70,16 @@ from . import *
 # separate out meaningful topics for classification; the objective of LDA
 # may itself not offer enough reward to finding distinct topics.
 # # sLDA's top words per topic
-# [insert words here]
+# - palate, style, structure, aromas, sweet, crisp, mouth, cherry, soft, spice
+# - soft, citrus, cherry, crisp, palate, blackberry, apple, like, aromas, cabernet
+# - aromas, cherry, spice, palate, chocolate, soft, cabernet, best, sweet, pinot
+# - sweet, soft, cherry, palate, style, crisp, aromas, shows, mouth, plenty
+# - cherry, soft, aromas, palate, touch, cedar, spice, sweet, made, plenty
+# - cherry, palate, aromas, chocolate, merlot, crisp, plenty, fresh, pomegranate, sauvignon
+# - sweet, cherries, shows, soft, aromas, palate, structure, cherry, cabernet, green
+# - cherry, palate, like, spice, shows, sweet, soft, full, blend, green
+# - palate, cherry, shows, aromas, cola, soft, cherries, raspberry, structure, crisp
+# - cherry, palate, like, sweet, shows, citrus, polished, aromas, soft, cherries
 
 #%% [markdown]
 # # Posterior Collapse
