@@ -18,8 +18,8 @@ import matplotlib.colors as mcolors
 # Vanilla LDA run with BBVI
 
 # %%
-data_root_dir = os.path.join(".", "data", "run_1")
-pattern = "gamma_5000.csv"
+data_root_dir = os.path.join(".", "data", "files")
+pattern = "pyro_lda_gamma_5000.csv"
 
 file_path = glob.glob(os.path.join(data_root_dir, pattern))
 

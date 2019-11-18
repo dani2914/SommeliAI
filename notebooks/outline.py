@@ -20,8 +20,8 @@ from SommeliAI import util
 # - Explain use of Trace ELBO
 # Criticism
 #(1) show T-SNE
-# - show word distribution
-# - number of unique words in top 10 words for each
+#(2) show word distribution
+#(3) number of unique words in top 10 words for each
 
 # %%
 # This Section highlights a deeper dive into the data
