@@ -38,13 +38,13 @@ if __name__ == "__main__":
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = None #use None if want to use full dataset
+    TESTING_SUBSIZE = 1000#None #use None if want to use full dataset
     SUBSAMPLE_SIZE = 100
     USE_CUDA = False
     ix = round(time.time())
     os.mkdir(f"results/{ix}")
 
-    print("alpha: 1/10; eta: rand 1")
+    print("alpha: rand 1/10; eta: rand 1; phi: rand 1/10")
     print(ix)
 
     if USE_CUDA:
@@ -60,6 +60,8 @@ if __name__ == "__main__":
     # if not none, then subset the dataframe for testing purposes
     if TESTING_SUBSIZE is not None:
         full_df = full_df.head(TESTING_SUBSIZE)
+
+
 
     # stop_words = ['acidity', 'age', 'apple', 'aroma', 'balance', 'berry', 'black',
     #   'blackberry', 'blend', 'cabernet', 'cherry', 'chocolate', 'citrus',
@@ -179,33 +181,34 @@ if __name__ == "__main__":
             lamda, lamda_ix = [], []
             gamma, gamma_ix = [], []
             phi, phi_ix = [], []
-            for i in range(num_txt):
+            for d in range(num_txt):
                 try:
-                    tensor = pyro.param(f"lamda_q_{i}")
+                    tensor = pyro.param(f"lamda_q_{d}")
                     lamda.append(tensor.detach().cpu().numpy())
-                    lamda_ix.append(i)
+                    lamda_ix.append(d)
                 except:
                     pass
 
                 try:
-                    tensor = pyro.param(f"gamma_q_{i}")
+                    tensor = pyro.param(f"gamma_q_{d}")
                     gamma.append(tensor.detach().cpu().numpy())
-                    gamma_ix.append(i)
+                    gamma_ix.append(d)
                 except:
                     pass
 
-                try:
-                    tensor = pyro.param(f"phi_q_{i}")
-                    phi.append(tensor.detach().cpu().numpy())
-                    phi_ix.append(i)
-                except:
-                    pass
-
+#                for w in range(num_words_per_txt[d]):
+#                    try:
+#                        tensor = pyro.param(f"phi_q_{d}_{w}")
+#                        phi.append(tensor.detach().cpu().numpy())
+#                        phi_ix.append(i)
+#                    except:
+#                        pass
+#
 
             pd.DataFrame(lamda, index=lamda_ix).to_csv(f"results/{ix}/lamda_{ix}_{step}.csv")
             pd.DataFrame(gamma, index=gamma_ix).to_csv(f"results/{ix}/gamma_{ix}_{step}.csv")
-            pd.DataFrame(phi, index=phi_ix).to_csv(f"results/{ix}/phi_{ix}_{step}.csv")
-            pd.DataFrame(lamdaT, index=lamda_ix).to_csv(f"results/{ix}/lamdaT_{ix}_{step}.csv")
+            #pd.DataFrame(phi, index=phi_ix).to_csv(f"results/{ix}/phi_{ix}_{step}.csv")
+            #pd.DataFrame(lamdaT, index=lamda_ix).to_csv(f"results/{ix}/lamdaT_{ix}_{step}.csv")
 
 
     # posterior_topics_x_words = dist.Dirichlet(pyro.param("phi")).sample()
