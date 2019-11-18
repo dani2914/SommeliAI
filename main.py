@@ -38,8 +38,8 @@ if __name__ == "__main__":
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 100#None #use None if want to use full dataset
-    SUBSAMPLE_SIZE = 10
+    TESTING_SUBSIZE = None #use None if want to use full dataset
+    SUBSAMPLE_SIZE = 100
     USE_CUDA = False
     ix = round(time.time())
     os.mkdir(f"results/{ix}")
