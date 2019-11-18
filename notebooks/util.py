@@ -61,7 +61,7 @@ def graph_tsne(tsne_df):
 
     group_ix = tsne_df["group"].values.astype("int")
 
-    n_topics = len(np.unique(tsne_df.ix))
+    n_topics = len(np.unique(group_ix))
 
     trgt_plot = figure(title=f"t-SNE Clustering of {n_topics} LDA Topics", 
                 plot_width=900, plot_height=700)

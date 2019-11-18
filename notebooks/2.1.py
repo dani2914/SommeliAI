@@ -12,8 +12,8 @@ import torch
 # mechanism to load tsne
 def load_pyro_lda_1_tsne(refresh=False):
 
-    gamma_fname = "pyro_lda_gamma_2000.csv"
-    tsne_fname = "pyro_lda_tsne_1.csv"
+    gamma_fname = "pyro_lda_1_gamma.csv"
+    tsne_fname = "pyro_lda_1_tsne.csv"
 
     gamma_path = util.get_filepath(gamma_fname)
     tsne_path = util.get_filepath(tsne_fname)
