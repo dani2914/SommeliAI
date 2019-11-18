@@ -18,6 +18,7 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.stem import SnowballStemmer
 from nltk import word_tokenize
+from customised_stopword import customised_stopword
 
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy import sparse
@@ -30,9 +31,8 @@ snow = SnowballStemmer('english')
 stop_n_punct_words = set(stopwords.words("english") + list(string.punctuation))
 
 
-def fetch_dataset():
+def fetch_dataset(data_root_dir):
     """ fetch data from disk and return a dataframe """
-    data_root_dir = os.path.join(".", "data")
     pattern = "winemag_dataset_*.csv"
 
     file_list = glob.glob(os.path.join(data_root_dir, pattern))
