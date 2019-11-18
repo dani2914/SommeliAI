@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 1000#None #use None if want to use full dataset
+    TESTING_SUBSIZE = None #use None if want to use full dataset
     SUBSAMPLE_SIZE = 100
     USE_CUDA = False
     ix = round(time.time())
@@ -136,6 +136,7 @@ if __name__ == "__main__":
     for step in range(num_step):
         loss = svi.step(*args)
         losses.append(loss)
+
         if step % 10 == 0:
             print("{}: {}".format(step, np.round(loss, 1)))
 
@@ -152,6 +153,36 @@ if __name__ == "__main__":
                 sorted_words_ix = torch.argsort(beta_q[i])
                 print("topic %s" % i)
                 print([word[0] for word in vocab[sorted_words_ix][-10:]])
+
+        if step % 100 == 0:
+            lamda, lamda_ix = [], []
+            for k in range(num_topic):
+                tensor = pyro.param(f"lamda_q_{k}")
+                lamda.append(tensor.detach().cpu().numpy())
+                lamda_ix.append(k)
+
+            gamma, gamma_ix = [], []
+            #phi, w_ix, d_ix = [[]], []
+            for d in range(num_txt):
+                try:
+                    tensor = pyro.param(f"gamma_q_{d}")
+                    gamma.append(tensor.detach().cpu().numpy())
+                    gamma_ix.append(d)
+
+                    # for w in range(num_words_per_txt[d]):
+                    #     tensor = pyro.param(f"phi_q_{d}_{w}")
+                    #     phi.append(tensor.detach().cpu().numpy())
+                    #     phi_ix.append(i)
+
+                except:
+                    pass
+
+
+            pd.DataFrame(lamda, index=lamda_ix).to_csv(f"results/{ix}/lamda_{ix}_{step}.csv")
+            pd.DataFrame(gamma, index=gamma_ix).to_csv(f"results/{ix}/gamma_{ix}_{step}.csv")
+            #pd.DataFrame(phi, index=phi_ix).to_csv(f"results/{ix}/phi_{ix}_{step}.csv")
+
+
 
         # if step % 100 == 0:
         #     alpha, alpha_ix = [], []
@@ -176,40 +207,6 @@ if __name__ == "__main__":
         #         sorted_words_ix = torch.argsort(posterior_topics_x_words[i])
         #         print("topic %s" % i)
         #         print([word[0] for word in vocab[sorted_words_ix][-10:]])
-
-        if step % 100 == 0:
-            lamda, lamda_ix = [], []
-            gamma, gamma_ix = [], []
-            phi, phi_ix = [], []
-            for d in range(num_txt):
-                try:
-                    tensor = pyro.param(f"lamda_q_{d}")
-                    lamda.append(tensor.detach().cpu().numpy())
-                    lamda_ix.append(d)
-                except:
-                    pass
-
-                try:
-                    tensor = pyro.param(f"gamma_q_{d}")
-                    gamma.append(tensor.detach().cpu().numpy())
-                    gamma_ix.append(d)
-                except:
-                    pass
-
-#                for w in range(num_words_per_txt[d]):
-#                    try:
-#                        tensor = pyro.param(f"phi_q_{d}_{w}")
-#                        phi.append(tensor.detach().cpu().numpy())
-#                        phi_ix.append(i)
-#                    except:
-#                        pass
-#
-
-            pd.DataFrame(lamda, index=lamda_ix).to_csv(f"results/{ix}/lamda_{ix}_{step}.csv")
-            pd.DataFrame(gamma, index=gamma_ix).to_csv(f"results/{ix}/gamma_{ix}_{step}.csv")
-            #pd.DataFrame(phi, index=phi_ix).to_csv(f"results/{ix}/phi_{ix}_{step}.csv")
-            #pd.DataFrame(lamdaT, index=lamda_ix).to_csv(f"results/{ix}/lamdaT_{ix}_{step}.csv")
-
 
     # posterior_topics_x_words = dist.Dirichlet(pyro.param("phi")).sample()
 
