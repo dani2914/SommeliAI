@@ -41,24 +41,25 @@ class supervisedLDA():
         alpha = torch.ones(self.K) / self.K
 
         # eta => prior for regression coefficient
-        weights_loc = torch.randn(self.K) * 2 - 1
-        weights_scale = torch.eye(self.K)
-        eta = pyro.sample(
-            "eta",
-            dist.MultivariateNormal(
-                loc=weights_loc,
-                covariance_matrix=weights_scale
-            )
-        )
-        # eta = torch.randn(self.K)
+        # weights_loc = torch.randn(self.K) * 2 - 1
+        # weights_scale = torch.eye(self.K)
+        # eta = pyro.sample(
+        #     "eta",
+        #     dist.MultivariateNormal(
+        #         loc=weights_loc,
+        #         covariance_matrix=weights_scale
+        #     )
+        # )
+
+        eta = torch.randn(self.K) * 2 - 1
         # sigma => prior for regression variance
-        sigma_loc = torch.tensor(1.)
+        sigma = torch.tensor(0.1)
         # sigma = torch.tensor(1.)
-        sigma = pyro.sample("sigma", dist.Normal(sigma_loc, torch.tensor(0.01)))
+        # sigma = pyro.sample("sigma", dist.Normal(sigma_loc, torch.tensor(0.01)))
 
         # returns d x t matrix
         y_list = []
-        for d in pyro.plate("documents", self.D, subsample_size=self.S):
+        for d in pyro.plate("documents", self.D):
             # theta => per-doc topic vector
             theta = pyro.sample("theta_" + str(d), dist.Dirichlet(alpha))
 
@@ -123,27 +124,27 @@ class supervisedLDA():
             Beta_q = pyro.sample("beta", dist.Dirichlet(lamda))
 
         # eta => prior for regression coefficient
-        weights_loc = pyro.param('weights_loc', torch.randn(self.K) * 2 - 1)
-        weights_scale = pyro.param('weights_scale', torch.eye(self.K),
-                                   constraint=constraints.positive)
-        eta = pyro.sample("eta",
-                          dist.MultivariateNormal(
-                              loc=weights_loc,
-                              covariance_matrix=weights_scale
-                          )
-                        )
+        # weights_loc = pyro.param('weights_loc', torch.randn(self.K) * 2 - 1)
+        # weights_scale = pyro.param('weights_scale', torch.eye(self.K),
+        #                            constraint=constraints.positive)
+        # eta = pyro.sample("eta",
+        #                   dist.MultivariateNormal(
+        #                       loc=weights_loc,
+        #                       covariance_matrix=weights_scale
+        #                   )
+        #                 )
         # sigma => prior for regression variance
 
-        # eta = pyro.param('coef', torch.randn(self.K) * 2 - 1)
-        sigma_loc = pyro.param('bias', torch.tensor(1.), constraint=constraints.positive)
-        sigma = pyro.sample("sigma", dist.Normal(sigma_loc, torch.tensor(0.01)))
-        # sigma = pyro.param('bias', torch.tensor(1.), constraint=constraints.positive)
+        eta = pyro.param('eta', torch.randn(self.K) * 2 - 1)
+        # sigma_loc = pyro.param('bias', torch.tensor(1.), constraint=constraints.positive)
+        # sigma = pyro.sample("sigma", dist.Normal(sigma_loc, torch.tensor(0.01)))
+        sigma = pyro.param('bias', torch.tensor(0.1), constraint=constraints.positive)
         # eta = pyro.param('coef', torch.randn(self.K))
         # sigma = pyro.param('bias', torch.tensor(1.), constraint=constraints.positive)
         # assert not any(np.isnan(eta.detach().numpy()))
         # assert sigma
         z_assignments = []
-        for d in pyro.plate("documents", self.D, subsample_size=self.S):
+        for d in pyro.plate("documents", self.D):
             # alpha_q => q for the per-doc topic vector
             gamma = pyro.param(
                 "alpha_q_" + str(d),

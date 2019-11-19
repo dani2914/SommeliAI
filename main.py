@@ -1,25 +1,17 @@
 """ main driver """
 import time
-import argparse
-import functools
-import importlib
 import util
 import numpy as np
 import pandas as pd
-from pyro.infer.mcmc import NUTS
-from pyro.infer.mcmc.api import MCMC
+import pickle
 from sklearn.metrics import r2_score
-from sklearn.linear_model import Lasso
 import torch
 from sklearn.model_selection import train_test_split
 import pyro
 from pyro.optim import Adam
-from sklearn.preprocessing import StandardScaler
 from customised_stopword import customised_stopword
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.linear_model import LassoCV
-import pyro.distributions as dist
-from pyro.infer import EmpiricalMarginal, SVI, Trace_ELBO, TracePredictive
 import matplotlib.pyplot as plt
 
 import torch.multiprocessing as mp
@@ -30,15 +22,11 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from models import (
-    plainLDA,
-    vaeLDA,
-    supervisedLDA,
-    sLDA_mcmc,
-    originalLDA
+    supervisedLDA
 )
 
 
-def main(neural_args):
+def main():
     ADAM_LEARN_RATE = 1e-3
     TESTING_SUBSIZE = 100  #use None if want to use full dataset
     SUBSAMPLE_SIZE = 100
@@ -66,13 +54,15 @@ def main(neural_args):
     print(clean_df)
     clean_df, indexed_txt_list, vocab_dict, vocab_count = util.preprocess_and_index(clean_df, ngram=1, custom_stopwords=customised_stopword)
     topic_vec = clean_df["variety"]
+    with open("vocab.pkl", "wb") as f:
+        pickle.dump(vocab_dict, f)
 
     scaler = MinMaxScaler()
     score_vec = pd.DataFrame(scaler.fit_transform(np.vstack(clean_df['points'].values).astype(np.float64)))
     plt.hist(score_vec.iloc[:, 0])
     plt.title("Historgram of scaled wine score")
     plt.show()
-
+    np.save("SommeliAI_labels.npy", np.array(score_vec))
     unique_topics = np.unique(topic_vec)
 
     topic_map = {unique_topics[i]: i + 1 for i in range(len(unique_topics))}
@@ -97,10 +87,10 @@ def main(neural_args):
             loss=orig_lda.loss)
 
     losses, alpha, beta = [], [], []
-    num_step = 5001
+    num_step = 8001
     s1 = time.time()
-    output = open("output" + str(s1) + ".txt", "a")
-    loss_f = open("loss.txt", "a")
+    output = open("2output" + str(s1) + ".txt", "a")
+    loss_f = open("loss2.txt", "a")
     score_loss = []
     for step in range(num_step):
         loss = svi.step(*args)
@@ -119,14 +109,18 @@ def main(neural_args):
                     tensor = pyro.param("alpha_q_" + str(i))
                     alpha.append(tensor.detach().numpy())
                     alpha_ix.append(i)
-                    lamb_ix.append(i)
-                    lamb.append(pyro.param("lambda_q_" + str(i)))
+                
                     temp = []
                     for j in range(len(indexed_txt_list[i])):
                         tensor = pyro.param("phi_q_" + str(i) + "_" +str(j))
                         temp.append(tensor.detach().numpy())
                     phi_ix.append(i)
                     phi.append(temp)
+                    
+                    lamb.append(pyro.param("lamda_q_" + str(i)))
+                    lamb_ix.append(i)
+                    #print(lamb)
+                    
                 except:
                     pass
             print("covered doc:" + str(len(alpha_ix)))
@@ -137,12 +131,15 @@ def main(neural_args):
             for name, site in tr.nodes.items():
                 if name == "eta":
                     eta = site["value"]
+                if "lamda" in name:
+                    print(name)
+                if "phi" in name:
+                    print(name)
                 if name == "beta":
                     beta = site["value"]
             y_label = []
             y_gold = []
             X = []
-            print(phi)
             for ix in range(len(alpha_ix)):
                 phi_p = phi[ix]
                         # zs = []
@@ -158,13 +155,15 @@ def main(neural_args):
                         # phi_p = np.random.dirichlet(alpha[ix])
                         # phi_in = phi_p
                 X.append(phi_in)
-                print(phi_in)
+
+               # print(phi_in)
                     # predicted_label = np.random.normal(mean, sigma.detach().numpy(), 1)[0]
                 predicted_label = np.dot(eta.detach().numpy(), phi_in)
                 y_label.append(predicted_label)
 
-                y_gold.append(label_list[ix])
+                y_gold.append(label_list[alpha_ix[ix]])
             print(X)
+            print(eta.detach().numpy())
             X_train, X_test, y_train, y_test = \
                         train_test_split(np.array(X), np.array(y_gold), test_size=0.2,
                                                                         random_state=3)
@@ -177,11 +176,13 @@ def main(neural_args):
             print("score loss:", r2_score(np.array(y_gold), np.array(y_label)))
             output.write("score loss:" + str(r2_score(np.array(y_gold), np.array(y_label))) + '\n')
             score_loss.append(r2_score(np.array(y_gold), np.array(y_label)))
-            np.save("phi_" + str(step), np.array(X))
-            np.save("phi_ix" + str(step), np.array(phi_ix))
-            np.save("alpha_ix" + str(step), np.array(alpha_ix))
-            np.save("eta_" + str(step), eta.detach().numpy())
-            np.save("lambda_" + str(step), np.array(lamb))
+            np.save("2phi_" + str(step), np.array(X))
+            np.save("2phi_ix" + str(step), np.array(phi_ix))
+            np.save("2alpha_ix" + str(step), np.array(alpha_ix))
+            np.save("2eta_" + str(step), eta.detach().numpy())
+            np.save("2lambda_" + str(step), np.array(lamb))
+            np.save("2alpha_" + str(step), np.array(alpha))
+            print(np.array(lamb).shape)
             posterior_topics_x_words = beta.data.numpy()
             print(posterior_topics_x_words)
             for i in range(num_topic):
@@ -192,19 +193,12 @@ def main(neural_args):
                 output.write(" ".join([word[0] for word in vocab[sorted_words_ix]][:10]) + '\n')
     fig = plt.figure()
     plt.plot(losses)
-    fig.savefig("trainig_loss" + RUN_NAME + ".png")
+    fig.savefig("2trainig_loss" + RUN_NAME + ".png")
 
     fig = plt.figure()
     plt.plot(score_loss)
-    fig.savefig("score_loss" + RUN_NAME + ".png")
+    fig.savefig("2score_loss" + RUN_NAME + ".png")
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Amortized Latent Dirichlet Allocation")
-
-    parser.add_argument("-n", "--num-steps", default=1000, type=int)
-    parser.add_argument("-l", "--layer-sizes", default="128-128")
-    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
-    parser.add_argument('--jit', action='store_true')
-    args = parser.parse_args()
-    main(args)
+if __name__ == '__main__':
+    main()
