@@ -61,13 +61,18 @@ def graph_tsne(tsne_df):
 
     group_ix = tsne_df["group"].values.astype("int")
 
-    n_topics = len(np.unique(tsne_df.ix))
+    n_topics = len(np.unique(group_ix))
 
     trgt_plot = figure(title=f"t-SNE Clustering of {n_topics} LDA Topics", 
                 plot_width=900, plot_height=700)
 
     trgt_plot.scatter(x=tsne_df["0"], y=tsne_df["1"], color=graph_colors[group_ix])
     show(trgt_plot)
+
+def graph_tsne_pair(tsne_tup):
+
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    fig.suptitle('theta vs. phi')
 
 def graph_word_dist(word_df):
 
