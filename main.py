@@ -62,19 +62,6 @@ if __name__ == "__main__":
     num_txt = len(indexed_txt_list)
     num_words_per_txt = [len(txt) for txt in indexed_txt_list]
 
-    #    # purely for testing purposes, overrides original val with toy dataset
-    #    indexed_txt_list = [
-    #        torch.tensor([1, 2, 3, 4, 5]),
-    #        torch.tensor([0, 2, 4, 6, 8, 9]),
-    #        torch.tensor([1, 3, 5, 7]),
-    #        torch.tensor([5, 6, 7])]
-    #    num_topic = 3
-    #    num_vocab = len(np.unique(
-    #       [word for txt in indexed_txt_list for word in txt])
-    #    )
-    #    num_txt = len(indexed_txt_list)
-    #    num_words_per_txt = [len(txt) for txt in indexed_txt_list]
-
     orig_lda = supervisedLDA(
         num_txt, num_words_per_txt,
         num_topic, num_vocab, SUBSAMPLE_SIZE

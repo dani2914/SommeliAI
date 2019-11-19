@@ -4,14 +4,13 @@ import pickle
 
 # %%
 num_topic = 10
-eta = np.load("files/pyro_slda_eta_5000.npy")
-lamb = np.load("files/pyro_slda_lambda_5000.npy")
-phi = np.load("files/pyro_slda_phi_5000.npy")
-phi_ix = np.load("files/pyro_slda_phi_ix5000.npy")
+eta = np.load("files/pyro_slda_full_eta_5000.npy")
+lamb = np.load("files/pyro_slda_full_lambda_5000.npy")
+phi = np.load("files/pyro_slda_full_phi_5000.npy")
 
 # %%
 num_topic = 10
-with open('files/trainset_slda_vocab.pkl', 'rb') as f:
+with open('files/SommeliAI_vocab_dict.pkl', 'rb') as f:
     vocab_dict = pickle.load(f)
 
 dtype = [("word", "<U17"), ("index", int)]
@@ -34,7 +33,7 @@ for i in range(num_topic):
     y = eta[i]
 
     plt.scatter(x, y, marker='x', color='blue')
-    plt.text(x + .3, y - .8, words, fontsize=10)
+    plt.text(x + .3, y - .5, words, fontsize=10)
 
 plt.title("sLDA coefficient for each topic")
 plt.show()

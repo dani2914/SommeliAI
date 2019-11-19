@@ -17,7 +17,7 @@ class regression_baseline():
 
         rr = LassoCV(cv=5)
         rr.fit(X_train, y_train)
-        print("alpha:", rr.alpha_)
+        print("alpha selected:", rr.alpha_)
         train_score = rr.score(X_train, y_train)
         test_score = rr.score(X_test, y_test)
         print("lasso regression train score:", train_score)
@@ -31,14 +31,11 @@ class regression_baseline():
         vocab = np.array([item for item in self.vocab_dict.items()], dtype=dtype)
         vocab = np.sort(vocab, order="index")
         word_index = np.argsort(np.abs(rr.coef_))[::-1]
-        print([word[0] for word in vocab[word_index][:20]])
         words = [word[0] for word in vocab[word_index][:10]]
         plt.plot(rr.coef_, alpha=0.7, linestyle='none', marker='*', markersize=5,
                  color='red', zorder=7)  # zorder for ordering the markers
         plt.xlabel('Coefficient Index', fontsize=16)
         plt.ylabel('Coefficient Magnitude', fontsize=16)
-        print(word_index[:20])
-        print(rr.coef_[word_index][:20])
         for i in range(len(words)):
             x = word_index[:10][i]
             y = rr.coef_[word_index][:10][i]

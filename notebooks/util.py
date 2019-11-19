@@ -1,15 +1,10 @@
 import os
 import sys
-import glob
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from customised_stopword import customised_stopword
-import torch
-import pyro
-import pyro.distributions as dist
-
 from sklearn.manifold import TSNE
 # from bokeh.plotting import figure, output_file, show
 # from bokeh.models import Label
