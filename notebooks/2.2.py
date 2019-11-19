@@ -1,28 +1,16 @@
-# %% Imports
-
-import os
-import glob
-import pandas as pd
-import numpy as np
-import pyro
-import pyro.distributions as dist
-import torch
-from sklearn.manifold import TSNE
-from bokeh.plotting import figure, output_file, show
-from bokeh.models import Label
-from bokeh.io import output_notebook
-import matplotlib.colors as mcolors
-
 # %% [markdown]
-# # Latent Dirichlet Allocation
-# Vanilla LDA run with BBVI
+# Word distribution of Vanilla LDA run with BBVI
+
+# imports
+import notebooks.util as util
+import pandas as pd
 
 # %%
-data_root_dir = os.path.join(".", "data", "files")
-pattern = "pyro_lda_beta_5000.csv"
+beta_fname = "pyro_lda_1_beta.csv"
+beta_path = util.get_filepath(beta_fname)
 
-file_path = glob.glob(os.path.join(data_root_dir, pattern))
+beta_df = pd.read_csv(beta_path, index_col=0)
 
-beta_df = pd.read_csv(file_path[0], index_col=0)
 # %%
-beta_df.plot()
+util.graph_word_dist(beta_df)
+
