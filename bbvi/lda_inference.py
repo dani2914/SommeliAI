@@ -42,7 +42,8 @@ def lda_inference(doc, lda, adagrad=False):
 
     # integrate out phi at each step
     var_ite = 0
-    while (converged > 1e-3 and var_ite < 1e1):
+    # just take one step -- don't run until convergence
+    while (converged > 1e-3 and var_ite < 1):
         var_ite += 1
 
         # sample S theta

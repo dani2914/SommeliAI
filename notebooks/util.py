@@ -34,13 +34,17 @@ def build_tsne(trgt_df, save_fname):
     group_ix = np.argmax(trgt_arr, axis=1)
 
     # run TSNE
-    tsne_model = TSNE(n_components=2, verbose=1, random_state=0, angle=.99, init='pca')
+    tsne_model = TSNE(
+        n_components=2, 
+        verbose=1, random_state=0, angle=.99,
+        init='pca'
+    )
     tsne_df = tsne_model.fit_transform(trgt_arr)
 
     # add group ix to the first column
-    tsne_df = pd.DataFrame(np.append(group_ix[:, None], tsne_df, axis=1), 
+    tsne_df = pd.DataFrame(np.append(group_ix[:, None], tsne_df, axis=1),
     columns=['group', '0', '1'], index=trgt_df.index)
-    
+
     # Save the tsne for faster loading on non-refresh setting
     tsne_df.to_csv(save_fname)
 
@@ -57,7 +61,6 @@ def load_tsne(load_fname):
 
 # graph tsne type dataframes
 def graph_tsne(tsne_df):
-
     # Plot the Topic Clusters using Bokeh
     output_notebook()
 
@@ -65,10 +68,14 @@ def graph_tsne(tsne_df):
 
     n_topics = len(np.unique(group_ix))
 
-    trgt_plot = figure(title=f"t-SNE Clustering of {n_topics} LDA Topics", 
-                plot_width=900, plot_height=700)
+    trgt_plot = figure(
+        title=f"t-SNE Clustering of {n_topics} LDA Topics",
+        plot_width=900, plot_height=700
+    )
 
-    trgt_plot.scatter(x=tsne_df["0"], y=tsne_df["1"], color=graph_colors[group_ix])
+    trgt_plot.scatter(x=tsne_df["0"], y=tsne_df["1"],
+        color=graph_colors[group_ix]
+    )
     show(trgt_plot)
 
 
@@ -104,7 +111,9 @@ def read_data(TESTING_SUBSIZE, data_root_dir):
 
 
 def generate_matrix(indexed_txt_list, vocab_size):
-    counts = [[0 for i in range(vocab_size)] for j in range(len(indexed_txt_list))]
+    counts = [[0 for i in range(vocab_size)]
+        for j in range(len(indexed_txt_list))
+    ]
     for j in range(len(indexed_txt_list)):
         for i in range(len(indexed_txt_list[j])):
             counts[j][int(indexed_txt_list[j].tolist()[i])] += 1
