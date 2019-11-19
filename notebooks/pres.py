@@ -1,5 +1,12 @@
+import os
+
 import util
-from util import *
+import torch
+from torch import dist
+import pandas as pd
+
+# from util import *
+
 
 def load_pyro_lda_1_theta_tsne(refresh=False):
     gamma_fname = "pyro_lda_1_gamma.csv"
@@ -20,8 +27,11 @@ def load_pyro_lda_1_theta_tsne(refresh=False):
 
     else:
         theta_tsne_df = util.load_tsne(theta_tsne_path)
+    samp = torch.randint(0, theta_tsne_df.shape[0], (20000,))
+    theta_tsne_df = theta_tsne_df.iloc[samp]
 
     return theta_tsne_df
+
 
 def plot_pyro_lda_1_theta_tsne(refresh=False):
     theta_tsne_df = load_pyro_lda_1_theta_tsne()
