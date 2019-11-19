@@ -59,7 +59,7 @@ def main(neural_args):
 
     # if not none, then subset the dataframe for testing purposes
     if TESTING_SUBSIZE is not None:
-        full_df = full_df.sample(frac=TESTING_SUBSIZE, replace=False)
+        full_df = full_df.sample(frac=TESTING_SUBSIZE, replace=False, random_state=666)
 
     # remove stop words, punctuation, digits and then change to lower case
     clean_df = util.preprocess(full_df, preprocess=True)
