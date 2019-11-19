@@ -69,6 +69,11 @@ def graph_tsne(tsne_df):
     trgt_plot.scatter(x=tsne_df["0"], y=tsne_df["1"], color=graph_colors[group_ix])
     show(trgt_plot)
 
+def graph_tsne_pair(tsne_tup):
+
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    fig.suptitle('theta vs. phi')
+
 def graph_word_dist(word_df):
 
     word_df.plot(figsize=(900, 700),
