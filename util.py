@@ -31,6 +31,7 @@ stop_n_punct_words = set(stopwords.words("english") + list(string.punctuation))
 def fetch_dataset():
     """ fetch data from disk and return a dataframe """
     data_root_dir = os.path.join(".", "data")
+
     pattern = "winemag_dataset_*.csv"
 
     file_list = glob.glob(os.path.join(data_root_dir, pattern))

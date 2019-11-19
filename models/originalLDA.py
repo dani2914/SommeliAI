@@ -40,11 +40,6 @@ class originalLDA:
         """pyro model for lda"""
         # eta => prior for the per-topic word distributions
         eta = torch.ones(self.V) / self.V
-
-        # returns topic x vocab matrix
-        # with pyro.plate("topics", self.K):
-        #     # beta => per topic word vec
-        #     beta = pyro.sample(f"beta", dist.Dirichlet(eta))
         Beta = torch.zeros((self.K, self.V))
         for k in pyro.plate("topics", self.K):
             # beta => per topic word vec

@@ -11,7 +11,6 @@ from torch.distributions import constraints
 import pyro
 import pyro.distributions as dist
 from pyro.infer import SVI, TraceEnum_ELBO
-from pyro.optim import ClippedAdam
 
 
 class vaeLDA:
@@ -32,7 +31,7 @@ class vaeLDA:
 
     @property
     def loss(self):
-        return TraceEnum_ELBO(max_plate_nesting=2)
+        return TraceEnum_ELBO(max_plate_nesting=0)
 
     def model(self, doc_list=None):
         """pyro model for lda"""
@@ -55,6 +54,7 @@ class vaeLDA:
                 z_assignment = pyro.sample(f"z_assignment_{d}_{t}",
                                            dist.Categorical(theta),
                                            infer={"enumerate": "parallel"})
+
                 # from that topic vec, select a word
                 w = pyro.sample(f"w_{d}_{t}", dist.Categorical(Beta[z_assignment]), obs=doc)
 
