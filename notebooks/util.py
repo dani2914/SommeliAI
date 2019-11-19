@@ -14,7 +14,7 @@ from bokeh.plotting import figure, output_file, show
 from bokeh.models import Label
 from bokeh.io import output_notebook
 
-files_root_dir = os.path.join(".", "notebooks", "files")
+files_root_dir = os.path.join("files")
 main_color_scheme = mcolors.TABLEAU_COLORS.items()
 graph_colors = np.array([color for name, color in main_color_scheme])
 
