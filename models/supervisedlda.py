@@ -117,8 +117,8 @@ class supervisedLDA():
 
             lamda = torch.stack([pyro.param("lamda_q_" + str(k),
                                             (1 + 0.01 * (2 * torch.rand(self.V) - 1)),
-                                            constraint=constraints.greater_than(0.5)) for k in k_vec])
-
+                                            constraint=constraints.greater_than(0.5)) for k in k_vec.tolist()])
+            
             # beta_q => posterior per topic word vec
             Beta_q = pyro.sample("beta", dist.Dirichlet(lamda))
 
@@ -157,7 +157,7 @@ class supervisedLDA():
                 # assign a topic
                 phi_q = torch.stack([pyro.param("phi_q_" + str(d) + "_" + str(w),
                 (1+0.01*(2*torch.rand(self.K)-1))/self.K,
-                constraint=constraints.simplex) for w in w_vec])
+                constraint=constraints.simplex) for w in w_vec.tolist()])
                 # phi_q = pyro.param("phi_q_" + str(d), torch.ones(self.K) / self.K,
                 #                    constraint=constraints.simplex)
                 z_assignment = pyro.sample("z_assignment_" + str(d), dist.Categorical(phi_q))

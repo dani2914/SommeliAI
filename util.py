@@ -252,9 +252,9 @@ def enrich_data_hierarchical_coordinates(data, hierarchy, mapping):
     data = data.set_index(hierarchy).sort_index()
     depth = len(hierarchy)
     for d in range(depth):
-        data.loc[:, f"coord_{d}"] = 0
+        data.loc[:, "coord_" + str(d)] = 0
 
-    cols = [f"coord_{d}" for d in range(depth)]
+    cols = ["coord_" + str(d) for d in range(depth)]
 
     for idx in data.index:
         data.loc[idx, cols] = (

@@ -30,11 +30,11 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from models import (
-    plainLDA,
-    vaeLDA,
+ #   plainLDA,
+ #   vaeLDA,
     supervisedLDA,
-    sLDA_mcmc,
-    originalLDA
+ #   sLDA_mcmc,
+#    originalLDA
 )
 
 
@@ -119,14 +119,18 @@ def main(neural_args):
                     tensor = pyro.param("alpha_q_" + str(i))
                     alpha.append(tensor.detach().numpy())
                     alpha_ix.append(i)
-                    lamb_ix.append(i)
-                    lamb.append(pyro.param("lambda_q_" + str(i)))
+                
                     temp = []
                     for j in range(len(indexed_txt_list[i])):
                         tensor = pyro.param("phi_q_" + str(i) + "_" +str(j))
                         temp.append(tensor.detach().numpy())
                     phi_ix.append(i)
                     phi.append(temp)
+                    
+                    lamb.append(pyro.param("lamda_q_" + str(i)))
+                    lamb_ix.append(i)
+                    #print(lamb)
+                    
                 except:
                     pass
             print("covered doc:" + str(len(alpha_ix)))
@@ -137,11 +141,14 @@ def main(neural_args):
             for name, site in tr.nodes.items():
                 if name == "eta":
                     eta = site["value"]
+                if "lamda" in name:
+                    print(name)
                 if name == "beta":
                     beta = site["value"]
             y_label = []
             y_gold = []
             X = []
+            print(len(lamb))
             for ix in range(len(alpha_ix)):
                 phi_p = phi[ix]
                         # zs = []
@@ -157,13 +164,13 @@ def main(neural_args):
                         # phi_p = np.random.dirichlet(alpha[ix])
                         # phi_in = phi_p
                 X.append(phi_in)
-                print(phi_in)
+               # print(phi_in)
                     # predicted_label = np.random.normal(mean, sigma.detach().numpy(), 1)[0]
                 predicted_label = np.dot(eta.detach().numpy(), phi_in)
                 y_label.append(predicted_label)
 
                 y_gold.append(label_list[ix])
-            print(X)
+            #print(X)
             X_train, X_test, y_train, y_test = \
                         train_test_split(np.array(X), np.array(y_gold), test_size=0.2,
                                                                         random_state=3)
@@ -181,6 +188,7 @@ def main(neural_args):
             np.save("alpha_ix" + str(step), np.array(alpha_ix))
             np.save("eta_" + str(step), eta.detach().numpy())
             np.save("lambda_" + str(step), np.array(lamb))
+            print(np.array(lamb).shape)
             posterior_topics_x_words = beta.data.numpy()
             print(posterior_topics_x_words)
             for i in range(num_topic):
