@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = None #use None if want to use full dataset
+    TESTING_SUBSIZE = 0.02#1000#use None if want to use full dataset
     SUBSAMPLE_SIZE = 100
     USE_CUDA = False
     ix = round(time.time())
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     # if not none, then subset the dataframe for testing purposes
     if TESTING_SUBSIZE is not None:
-        full_df = full_df.head(TESTING_SUBSIZE)
+        full_df = full_df.sample(frac=TESTING_SUBSIZE, replace=False, random_state=666)
 
 
 
