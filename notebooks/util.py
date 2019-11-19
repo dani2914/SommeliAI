@@ -18,7 +18,7 @@ from sklearn.manifold import TSNE
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import data_util
 
-files_root_dir = os.path.join(".", "notebooks", "files")
+files_root_dir = os.path.join("files")
 main_color_scheme = mcolors.TABLEAU_COLORS.items()
 graph_colors = np.array([color for name, color in main_color_scheme])
 
