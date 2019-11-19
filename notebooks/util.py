@@ -79,4 +79,3 @@ def graph_word_dist(word_df):
     word_df.plot(figsize=(900, 700),
     title=f"Probability Distribution of {word_df.shape[0]} words",
     color=graph_colors[np.arange(word_df.shape[1])])
-

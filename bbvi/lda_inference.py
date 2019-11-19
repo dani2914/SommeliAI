@@ -7,7 +7,7 @@ from math import isnan
 from scipy.stats import dirichlet
 from scipy.special import gammaln, psi
 
-np.random.seed(123)
+np.random.seed(222)
 
 def dirichlet_expectation(alpha):
     """
