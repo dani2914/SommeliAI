@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-
+from customised_stopword import customised_stopword
 import torch
 import pyro
 import pyro.distributions as dist
@@ -104,7 +104,7 @@ def read_data(TESTING_SUBSIZE, data_root_dir):
     # remove stop words, punctuation, digits and then change to lower case
     clean_df = data_util.preprocess(full_df, preprocess=True)
     print(clean_df)
-    clean_df, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1)
+    clean_df, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1, custom_stopwords=customised_stopword)
     return clean_df, indexed_txt_list, vocab_dict
 
 
