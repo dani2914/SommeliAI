@@ -2,10 +2,12 @@
 
 import argparse
 import functools
-import util
+import pandas as pd
+import data_util
 import numpy as np
 import pyro
 from pyro.optim import Adam
+from sklearn.preprocessing import MinMaxScaler
 
 from models import (
     plainLDA,
@@ -14,13 +16,6 @@ from models import (
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Amortized Latent Dirichlet Allocation"
-    )
-
-    parser.add_argument("-n", "--num-steps", default=1000, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
-    neural_args = parser.parse_args()
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
@@ -31,26 +26,28 @@ if __name__ == "__main__":
     # if USE_CUDA:
     #     torch.set_default_tensor_type("torch.cuda.FloatTensor")
 
-    full_df = util.fetch_dataset()
+    full_df = data_util.fetch_dataset()
 
     # keep topics with the highest number of txt, and add min threshold if want
-    full_df = util.filter_by_topic(full_df, keep_top_n_topics=10)
+    full_df = data_util.filter_by_topic(full_df, keep_top_n_topics=10)
 
     # if not none, then subset the dataframe for testing purposes
-    if TESTING_SUBSIZE > 0:
-        full_df = full_df.head(TESTING_SUBSIZE)
+    if TESTING_SUBSIZE is not None:
+        full_df = full_df.sample(frac=TESTING_SUBSIZE, replace=False, random_state=666)
 
     # remove stop words, punctuation, digits and then change to lower case
-    clean_df = util.preprocess(full_df, preprocess=True)
+    clean_df = data_util.preprocess(full_df, preprocess=True)
 
     txt_vec = clean_df["description"]
     topic_vec = clean_df["variety"]
-    score_vec = clean_df["points"].astype(np.float64)
+    scaler = MinMaxScaler()
+    score_vec = pd.DataFrame(scaler.fit_transform(np.vstack(clean_df['points'].values).astype(np.float64)))
+
     unique_topics = np.unique(topic_vec)
 
     (indexed_txt_list,
         vocab_dict,
-        vocab_count) = util.conv_word_to_indexed_txt(
+        vocab_count) = data_util.conv_word_to_indexed_txt(
         txt_vec
     )
 
@@ -92,15 +89,7 @@ if __name__ == "__main__":
     else:
         args = (indexed_txt_list,)
 
-    if isinstance(orig_lda):
-        predictor = orig_lda.make_predictor(neural_args)
-        guide = functools.partial(
-            orig_lda.parametrized_guide,
-            predictor,
-            vocab_count
-        )
-    else:
-        guide = orig_lda.guide
+    guide = orig_lda.guide
 
     svi = pyro.infer.SVI(
         model=orig_lda.model,

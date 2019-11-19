@@ -6,7 +6,7 @@ import numpy as np
 import logging
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
-import util
+import data_util
 import torch
 from torch import nn
 from torch.distributions import constraints

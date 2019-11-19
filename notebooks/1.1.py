@@ -1,5 +1,5 @@
 # %% Imports
-import util
+import data_util
 import os
 import glob
 import pandas as pd
@@ -22,7 +22,7 @@ mycolors = np.array([color for name, color in mcolors.TABLEAU_COLORS.items()])
 
 # %%
 
-full_df = util.fetch_dataset()
+full_df = data_util.fetch_dataset()
 
 value_counts = full_df.variety.value_counts()
 tmp_colors = np.repeat(mycolors[0:2], np.array([10, value_counts.shape[0]-10]))

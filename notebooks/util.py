@@ -1,18 +1,22 @@
 import os
+import sys
 import glob
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+from customised_stopword import customised_stopword
 
 import torch
 import pyro
 import pyro.distributions as dist
 
 from sklearn.manifold import TSNE
-from bokeh.plotting import figure, output_file, show
-from bokeh.models import Label
-from bokeh.io import output_notebook
+# from bokeh.plotting import figure, output_file, show
+# from bokeh.models import Label
+# from bokeh.io import output_notebook
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import data_util
 
 files_root_dir = os.path.join(".", "notebooks", "files")
 main_color_scheme = mcolors.TABLEAU_COLORS.items()
@@ -80,3 +84,29 @@ def graph_word_dist(word_df):
     title=f"Probability Distribution of {word_df.shape[0]} words",
     color=graph_colors[np.arange(word_df.shape[1])])
 
+
+def read_data(TESTING_SUBSIZE, data_root_dir):
+
+    full_df = data_util.fetch_dataset(data_root_dir)
+
+    # keep topics with the highest number of txt, and add min threshold if want
+    full_df = data_util.filter_by_topic(full_df, keep_top_n_topics=10)
+
+    # if not none, then subset the dataframe for testing purposes
+    if TESTING_SUBSIZE is not None:
+        full_df = full_df.sample(frac=TESTING_SUBSIZE, replace=False, random_state=666)
+
+    # remove stop words, punctuation, digits and then change to lower case
+    clean_df = data_util.preprocess(full_df, preprocess=True)
+    print(clean_df)
+    clean_df, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1, custom_stopwords=customised_stopword)
+    return clean_df, indexed_txt_list, vocab_dict
+
+
+def generate_matrix(indexed_txt_list, vocab_size):
+    counts = [[0 for i in range(vocab_size)] for j in range(len(indexed_txt_list))]
+    for j in range(len(indexed_txt_list)):
+        for i in range(len(indexed_txt_list[j])):
+            counts[j][int(indexed_txt_list[j].tolist()[i])] += 1
+    counts = np.array(counts)
+    return counts

@@ -1,5 +1,5 @@
 # %% Imports
-import util
+import data_util
 import os
 import glob
 import pandas as pd
@@ -20,8 +20,8 @@ import matplotlib.colors as mcolors
 
 # %%
 
-full_df = util.fetch_dataset()
-full_df = util.filter_by_topic(full_df, keep_top_n_topics=10)
+full_df = data_util.fetch_dataset()
+full_df = data_util.filter_by_topic(full_df, keep_top_n_topics=10)
 
 ax = full_df.variety.value_counts().plot(kind="bar", figsize=(20,10), 
 title="Document Counts by Topic")

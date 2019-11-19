@@ -1,11 +1,8 @@
 from .plainlda import plainLDA
-from .vanilda import vaniLDA
-from .vaelda import vaeLDA
 from .supervisedlda import supervisedLDA
-
+from .regression_baseline import regression_baseline
 __all__ = [
     "plainLDA",
-    "vaniLDA",
-    "vaeLDA",
-    "supervisedLDA"
+    "supervisedLDA",
+    "regression_baseline"
 ]
