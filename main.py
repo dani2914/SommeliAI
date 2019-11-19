@@ -40,7 +40,7 @@ from models import (
 
 def main(neural_args):
     ADAM_LEARN_RATE = 1e-3
-    TESTING_SUBSIZE = 0.02 #use None if want to use full dataset
+    TESTING_SUBSIZE = 100  #use None if want to use full dataset
     SUBSAMPLE_SIZE = 100
     USE_CUDA = False
     num_topic = 10
@@ -59,7 +59,7 @@ def main(neural_args):
 
     # if not none, then subset the dataframe for testing purposes
     if TESTING_SUBSIZE is not None:
-        full_df = full_df.sample(frac=TESTING_SUBSIZE, replace=False, random_state=666)
+        full_df = full_df.sample(n=TESTING_SUBSIZE, replace=False, random_state=666)
 
     # remove stop words, punctuation, digits and then change to lower case
     clean_df = util.preprocess(full_df, preprocess=True)
@@ -142,6 +142,7 @@ def main(neural_args):
             y_label = []
             y_gold = []
             X = []
+            print(phi)
             for ix in range(len(alpha_ix)):
                 phi_p = phi[ix]
                         # zs = []
