@@ -1,4 +1,4 @@
-import util
+import notebooks.util as util
 import matplotlib
 matplotlib.rcParams.update({'font.size': 12})
 from sklearn.preprocessing import MinMaxScaler
@@ -8,9 +8,8 @@ import os
 from models import regression_baseline
 import matplotlib.pyplot as plt
 
-
+# %%
 TESTING_SUBSIZE = 0.02
-
 
 data_root_dir = os.path.join("..", "data")
 clean_df, data, vocab_dict = util.read_data(TESTING_SUBSIZE, data_root_dir)

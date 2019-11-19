@@ -5,7 +5,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from customised_stopword import customised_stopword
 
 import torch
 import pyro
@@ -23,10 +22,13 @@ main_color_scheme = mcolors.TABLEAU_COLORS.items()
 graph_colors = np.array([color for name, color in main_color_scheme])
 
 # get default filepath for notebook modules
+
+
 def get_filepath(fname):
     fpath = os.path.join(files_root_dir, fname)
 
     return fpath
+
 
 # build tsne and save for quick load
 def build_tsne(trgt_df, save_fname):
@@ -48,6 +50,7 @@ def build_tsne(trgt_df, save_fname):
     tsne_df.to_csv(save_fname)
 
     return tsne_df
+
 
 # load tsne
 def load_tsne(load_fname):
@@ -73,10 +76,12 @@ def graph_tsne(tsne_df):
     trgt_plot.scatter(x=tsne_df["0"], y=tsne_df["1"], color=graph_colors[group_ix])
     show(trgt_plot)
 
+
 def graph_tsne_pair(tsne_tup):
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
     fig.suptitle('theta vs. phi')
+
 
 def graph_word_dist(word_df):
 
@@ -99,7 +104,7 @@ def read_data(TESTING_SUBSIZE, data_root_dir):
     # remove stop words, punctuation, digits and then change to lower case
     clean_df = data_util.preprocess(full_df, preprocess=True)
     print(clean_df)
-    clean_df, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1, custom_stopwords=customised_stopword)
+    clean_df, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1)
     return clean_df, indexed_txt_list, vocab_dict
 
 

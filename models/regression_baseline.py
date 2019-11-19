@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-import util
+import notebooks.util as util
 import matplotlib
 matplotlib.rcParams.update({'font.size': 12})
 from sklearn.model_selection import train_test_split
@@ -44,6 +44,6 @@ class regression_baseline():
             y = rr.coef_[word_index][:10][i]
             plt.scatter(x, y, marker='x', color='blue')
             plt.text(x + .01, y + .01, words[i], fontsize=9)
-        plt.title("Lasso regression import words\n (alpha =" + str(np.round(rr.alpha_, 2)) + ")")
+        plt.title("Lasso regression import words\n (alpha =" + str(np.round(rr.alpha_, 5)) + ")")
         plt.show()
         plt.savefig("coefficients.png")
