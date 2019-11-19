@@ -85,7 +85,8 @@ from . import *
 # # Posterior Collapse
 
 #%% [markdown]
-# # BBVI for LDA
+# # Parameter Updates: Gamma
+# ![](files/cavi_update_gamma.png)
 
 #%% [markdown]
 # # CAVI for LDA

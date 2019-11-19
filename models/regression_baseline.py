@@ -14,8 +14,7 @@ class regression_baseline():
 
     def model(self, X, score_vec):
         X_train, X_test, y_train, y_test = train_test_split(X, score_vec.iloc[:, 0], test_size=0.2, random_state=3)
-        plt.hist(y_train)
-        plt.show()
+
         rr = LassoCV(cv=5)
         rr.fit(X_train, y_train)
         print("alpha:", rr.alpha_)
@@ -45,6 +44,6 @@ class regression_baseline():
             y = rr.coef_[word_index][:10][i]
             plt.scatter(x, y, marker='x', color='blue')
             plt.text(x + .01, y + .01, words[i], fontsize=9)
-        plt.title("Lasso regression import words (alpha =" + str(rr.alpha_) + ")")
+        plt.title("Lasso regression import words\n (alpha =" + str(np.round(rr.alpha_, 2)) + ")")
         plt.show()
         plt.savefig("coefficients.png")
