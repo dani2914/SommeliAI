@@ -116,15 +116,12 @@ def plot_regression_response_distribution():
 
 
 def plot_slda_regression_topic_words():
-<<<<<<< HEAD
     eta = np.load("files/pyro_slda_full_eta_5000.npy")
     lamb = np.load("files/pyro_slda_full_lambda_5000.npy")
     phi = np.load("files/pyro_slda_full_phi_5000.npy")
-=======
     eta = np.load("files/pyro_slda_eta_5000.npy")
     lamb = np.load("files/pyro_slda_lambda_5000.npy")
     # phi = np.load("files/pyro_slda_phi_5000.npy")
->>>>>>> d841379c9e2731b10c8b0a0143dccf7151e6eee8
 
     num_topic = 10
     with open('files/trainset_slda_vocab.pkl', 'rb') as f:
