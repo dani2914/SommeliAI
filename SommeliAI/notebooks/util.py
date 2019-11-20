@@ -7,7 +7,7 @@ from SommeliAI.customised_stopword import customised_stopword
 from sklearn.manifold import TSNE
 from bokeh.plotting import figure, show
 from bokeh.io import output_notebook
-import data_util
+from SommeliAI import data_util
 
 files_root_dir = os.path.join("files")
 main_color_scheme = mcolors.TABLEAU_COLORS.items()
