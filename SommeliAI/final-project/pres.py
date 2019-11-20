@@ -49,7 +49,7 @@ def plot_pyro_lda_1_theta_tsne(refresh=False):
 def plot_pyro_lda_1_beta():
     mycolors = np.array([color for name, color in mcolors.TABLEAU_COLORS.items()])
 
-    beta_fname = "pyro_lda_1_beta.csv"
+    beta_fname = "pyro_lda_beta_2000.csv"
     beta_path = util.get_filepath(beta_fname)
 
     beta_df = pd.read_csv(beta_path, index_col=0)
@@ -106,9 +106,9 @@ def plot_regression_response_distribution():
 
 
 def plot_slda_regression_topic_words():
-    eta = np.load("files/pyro_slda_eta_5000.npy")
-    lamb = np.load("files/pyro_slda_lambda_5000.npy")
-    phi = np.load("files/pyro_slda_phi_5000.npy")
+    eta = np.load("files/pyro_slda_full_eta_5000.npy")
+    lamb = np.load("files/pyro_slda_full_lambda_5000.npy")
+    phi = np.load("files/pyro_slda_full_phi_5000.npy")
 
     num_topic = 10
     with open('files/trainset_slda_vocab.pkl', 'rb') as f:
@@ -188,3 +188,7 @@ def plot_losses():
         title=f"Times Series of Losses",
         color=mycolors[np.arange(unique_df.shape[1])]
     )
+
+
+if __name__ == '__main__':
+    plot_unique_words_ts()
