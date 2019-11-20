@@ -1,7 +1,8 @@
 from SommeliAI import data_util
 import matplotlib.pyplot as plt
 import os
-import SommeliAI.notebooks.util as util
+import util
+from SommeliAI.customised_stopword import customised_stopword
 import torch
 from torch import dist
 import pandas as pd
@@ -47,18 +48,21 @@ def plot_pyro_lda_1_theta_tsne(refresh=False):
 
 
 def plot_pyro_lda_1_beta():
-    mycolors = np.array([color for name, color in mcolors.TABLEAU_COLORS.items()])
+    mycolors = np.array(
+        [color for name, color in mcolors.TABLEAU_COLORS.items()]
+    )
 
     beta_fname = "pyro_lda_beta_2000.csv"
     beta_path = util.get_filepath(beta_fname)
 
     beta_df = pd.read_csv(beta_path, index_col=0)
 
-    beta_df.plot(figsize=(900, 700),
-    title=f"Probability Distribution of {beta_df.shape[0]} words",
-    color=mycolors[np.arange(beta_df.shape[1])]
+    beta_df.plot(
+        figsize=(900, 700),
+        title=f"Probability Distribution of {beta_df.shape[0]} words",
+        color=mycolors[np.arange(beta_df.shape[1])]
     )
-    #util.graph_word_dist(beta_df)
+    # util.graph_word_dist(beta_df)
 
 
 def plot_regression_features():
@@ -95,10 +99,16 @@ def plot_regression_response_distribution():
     data_root_dir = os.path.join("..", "data")
     TESTING_SUBSIZE = 0.02
 
-    clean_df, indexed_txt_list, vocab_dict = util.read_data(TESTING_SUBSIZE, data_root_dir)
+    clean_df, indexed_txt_list, vocab_dict = util.read_data(
+        TESTING_SUBSIZE,
+        data_root_dir
+    )
 
     scaler = StandardScaler()
-    score_vec = pd.DataFrame(scaler.fit_transform(np.vstack(clean_df['points'].values).astype(np.float64)))
+    score_vec = pd.DataFrame(scaler.fit_transform(
+        np.vstack(clean_df['points'].values).astype(np.float64)
+        )
+    )
 
     plt.hist(score_vec.iloc[:, 0])
     plt.title("Historgram of scaled wine score")
@@ -106,9 +116,15 @@ def plot_regression_response_distribution():
 
 
 def plot_slda_regression_topic_words():
+<<<<<<< HEAD
     eta = np.load("files/pyro_slda_full_eta_5000.npy")
     lamb = np.load("files/pyro_slda_full_lambda_5000.npy")
     phi = np.load("files/pyro_slda_full_phi_5000.npy")
+=======
+    eta = np.load("files/pyro_slda_eta_5000.npy")
+    lamb = np.load("files/pyro_slda_lambda_5000.npy")
+    # phi = np.load("files/pyro_slda_phi_5000.npy")
+>>>>>>> d841379c9e2731b10c8b0a0143dccf7151e6eee8
 
     num_topic = 10
     with open('files/trainset_slda_vocab.pkl', 'rb') as f:
@@ -141,28 +157,45 @@ def plot_slda_regression_topic_words():
 
 
 def plot_wine_variety():
-    mycolors = np.array([color for name, color in mcolors.TABLEAU_COLORS.items()])
+    mycolors = np.array(
+        [color for name, color in mcolors.TABLEAU_COLORS.items()]
+    )
     data_root_dir = os.path.join("..", "data")
     full_df = data_util.fetch_dataset(data_root_dir)
 
     clean_df = data_util.preprocess(full_df, preprocess=True)
     print(clean_df.head)
-    _, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1)
+    _, indexed_txt_list, vocab_dict, vocab_count = (
+        data_util.preprocess_and_index(clean_df, ngram=1)
+    )
     print("vocabulary size: " + str(len(vocab_dict)))
-    clean_df, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1,
-                                                                                         custom_stopwords=customised_stopword)
+    clean_df, indexed_txt_list, vocab_dict, vocab_count = (
+        data_util.preprocess_and_index(
+            clean_df, ngram=1,
+            custom_stopwords=customised_stopword
+        )
+    )
     print("vocabulary size after removing stopwords: " + len(vocab_dict))
     value_counts = full_df.variety.value_counts()
-    tmp_colors = np.repeat(mycolors[0:2], np.array([10, value_counts.shape[0]-10]))
+    tmp_colors = np.repeat(mycolors[0:2], np.array(
+        [10, value_counts.shape[0]-10])
+    )
 
-    ax = full_df.variety.value_counts().plot(kind="bar", figsize=(20,10),
-    title="Document Counts by Topic", color=tmp_colors)
+    ax = full_df.variety.value_counts().plot(
+        kind="bar",
+        figsize=(20, 10),
+        title="Document Counts by Topic",
+        color=tmp_colors
+    )
     ax.set_xlabel("Variety of Wines (TOPIC)")
     ax.set_ylabel("Number of Documents")
     plt.show()
 
+
 def plot_unique_words_ts():
-    mycolors = np.array([color for name, color in mcolors.TABLEAU_COLORS.items()])
+    mycolors = np.array(
+        [color for name, color in mcolors.TABLEAU_COLORS.items()]
+    )
 
     unique_fname = "pyro_lda_unique_words.csv"
     unique_path = util.get_filepath(unique_fname)
@@ -175,8 +208,11 @@ def plot_unique_words_ts():
         color=mycolors[np.arange(unique_df.shape[1])]
     )
 
+
 def plot_losses():
-    mycolors = np.array([color for name, color in mcolors.TABLEAU_COLORS.items()])
+    mycolors = np.array(
+        [color for name, color in mcolors.TABLEAU_COLORS.items()]
+    )
 
     unique_fname = "pyro_lda_loss.csv"
     unique_path = util.get_filepath(unique_fname)
@@ -188,7 +224,3 @@ def plot_losses():
         title=f"Times Series of Losses",
         color=mycolors[np.arange(unique_df.shape[1])]
     )
-
-
-if __name__ == '__main__':
-    plot_unique_words_ts()
