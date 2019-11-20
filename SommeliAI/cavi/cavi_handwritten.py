@@ -2,41 +2,46 @@
 
 import os
 import torch
-import data_util
 import numpy as np
 import pandas as pd
 
+from SommeliAI import data_util
+
+
 def main():
     # CONSTANTS
-    ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 0.001 #use None if want to use full dataset
-    SUBSAMPLE_SIZE = 100
+    TESTING_SUBSIZE = 0.001  # use None if want to use full dataset
     NUM_OF_TOPICS = 10
     NUM_ITERATIONS = 10
     FILTER_CUSTOM_STOPWORDS = False
     RANDOM_STATE = 666
     USE_CUDA = False
 
-    stop_words = ['acidity', 'age', 'apple', 'aroma', 'balance', 'berry', 
-      'blackberry', 'blend', 'cabernet', 'cherry', 'chocolate', 'citrus',
-      'crisp', 'currant', 'dark', 'drink', 'dry', 'finish', 'flavor',
-      'fresh', 'fruit', 'full', 'give', 'good', 'green', 'ha', 'herb',
-      'hint', 'juicy', 'lemon', 'light', 'make', 'merlot', 'nose',
-      'note', 'oak', 'offer', 'palate', 'peach', 'pepper', 'pinot',
-      'plum', 'raspberry', 'red', 'rich', 'ripe', 'sauvignon', 'show',
-      'soft', 'spice', 'structure', 'sweet', 'tannin', 'texture',
-      'toast', 'vanilla', 'vineyard', 'well', 'wine', 'year', 'black']
+    stop_words = [
+        'acidity', 'age', 'apple', 'aroma', 'balance', 'berry',
+        'blackberry', 'blend', 'cabernet', 'cherry', 'chocolate', 'citrus',
+        'crisp', 'currant', 'dark', 'drink', 'dry', 'finish', 'flavor',
+        'fresh', 'fruit', 'full', 'give', 'good', 'green', 'ha', 'herb',
+        'hint', 'juicy', 'lemon', 'light', 'make', 'merlot', 'nose',
+        'note', 'oak', 'offer', 'palate', 'peach', 'pepper', 'pinot',
+        'plum', 'raspberry', 'red', 'rich', 'ripe', 'sauvignon', 'show',
+        'soft', 'spice', 'structure', 'sweet', 'tannin', 'texture',
+        'toast', 'vanilla', 'vineyard', 'well', 'wine', 'year', 'black'
+    ]
 
     if USE_CUDA:
         torch.set_default_tensor_type("torch.cuda.DoubleTensor")
     else:
         torch.set_default_tensor_type("torch.DoubleTensor")
 
-    data_root_dir = os.path.join(".", "data")
+    data_root_dir = os.path.join("..", "data")
     full_df = data_util.fetch_dataset(data_root_dir)
 
     # keep topics with the highest number of txt
-    full_df = data_util.filter_by_topic(full_df, keep_top_n_topics=NUM_OF_TOPICS)
+    full_df = data_util.filter_by_topic(
+        full_df,
+        keep_top_n_topics=NUM_OF_TOPICS
+    )
 
     # if not none, then subset the dataframe for testing purposes
     if TESTING_SUBSIZE is not None:
@@ -49,10 +54,12 @@ def main():
 
     # remove stop words, punctuation, digits and then change to lower case
     clean_df, indexed_txt_list, vocab_dict, vocab_count = \
-        data_util.preprocess_and_index(full_df, ngram=1, 
-        custom_stopwords=stop_words)
+        data_util.preprocess_and_index(
+            full_df, ngram=1,
+            custom_stopwords=stop_words
+        )
 
-    txt_vec = clean_df["description"]
+    # txt_vec = clean_df["description"]
     topic_vec = clean_df["variety"]
     unique_topics = np.unique(topic_vec)
 
@@ -69,7 +76,6 @@ def main():
     doc_list = indexed_txt_list
 
     doc_list = [doc.to(dtype=torch.int) for doc in doc_list]
-
 
     # actual cavi model
     K = num_topic
@@ -94,10 +100,12 @@ def main():
             for i in torch.arange(W[d]):
                 x_di = doc_list[d][i]
 
-                phi_numerator = torch.digamma(eta[:, x_di]) - \
-                        torch.digamma(torch.sum(eta, axis=1)) + \
-                        torch.digamma(alpha[d, :]) - \
-                        torch.digamma(torch.sum(alpha[d]))
+                phi_numerator = (
+                    torch.digamma(eta[:, x_di]) -
+                    torch.digamma(torch.sum(eta, axis=1)) +
+                    torch.digamma(alpha[d, :]) -
+                    torch.digamma(torch.sum(alpha[d]))
+                )
                 phi_numerator = torch.exp(phi_numerator)
 
                 phi[d][i] = phi_numerator / torch.sum(phi_numerator)
@@ -106,28 +114,34 @@ def main():
         for d in torch.arange(D):
             alpha[d] = alpha_0[d] + torch.sum(phi[d], axis=0)
 
-
         # update eta
         for v in torch.arange(V, dtype=torch.int):
-            v_match = [doc==v for doc in doc_list]
+            v_match = [doc == v for doc in doc_list]
 
-            phi_sub = [phi[d][v_match[d]] for d in torch.arange(d) \
-                    if len(phi[d][v_match[d]]) != 0]
+            phi_sub = [
+                phi[d][v_match[d]] for d in torch.arange(d)
+                if len(phi[d][v_match[d]]) != 0
+            ]
 
             if phi_sub == []:
-                eta[:,v] = eta_0[:,v]
+                eta[:, v] = eta_0[:, v]
             else:
                 phi_sub = torch.sum(torch.cat(
-                    [phi[d][v_match[d]] for d in torch.arange(d) \
+                    [phi[d][v_match[d]] for d in torch.arange(d)
                         if len(phi[d][v_match[d]]) != 0]), axis=0)
-                eta[:,v] = eta_0[:,v] + phi_sub
+                eta[:, v] = eta_0[:, v] + phi_sub
 
-
-        phi_df = pd.DataFrame([torch.mean(p, axis=0).cpu().numpy() for p in phi])
-        extremes_df = pd.concat((phi_df.min(axis=0), phi_df.max(axis=0)), axis=1)
+        phi_df = pd.DataFrame(
+            [torch.mean(p, axis=0).cpu().numpy() for p in phi]
+        )
+        extremes_df = pd.concat(
+            (phi_df.min(axis=0), phi_df.max(axis=0)),
+            axis=1
+        )
         extremes_df.columns = ["min", "max"]
 
         print(extremes_df)
+
 
 if __name__ == "__main__":
     main()
