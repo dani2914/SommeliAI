@@ -1,7 +1,5 @@
 """ main driver """
 
-import argparse
-import functools
 import pandas as pd
 import data_util
 import numpy as np
@@ -33,7 +31,11 @@ if __name__ == "__main__":
 
     # if not none, then subset the dataframe for testing purposes
     if TESTING_SUBSIZE is not None:
-        full_df = full_df.sample(frac=TESTING_SUBSIZE, replace=False, random_state=666)
+        full_df = full_df.sample(
+            frac=TESTING_SUBSIZE,
+            replace=False,
+            random_state=666
+        )
 
     # remove stop words, punctuation, digits and then change to lower case
     clean_df = data_util.preprocess(full_df, preprocess=True)
@@ -41,7 +43,13 @@ if __name__ == "__main__":
     txt_vec = clean_df["description"]
     topic_vec = clean_df["variety"]
     scaler = MinMaxScaler()
-    score_vec = pd.DataFrame(scaler.fit_transform(np.vstack(clean_df['points'].values).astype(np.float64)))
+    score_vec = pd.DataFrame(
+        scaler.fit_transform(
+            np.vstack(
+                clean_df['points'].values
+            ).astype(np.float64)
+        )
+    )
 
     unique_topics = np.unique(topic_vec)
 

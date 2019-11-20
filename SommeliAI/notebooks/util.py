@@ -1,15 +1,13 @@
 import os
-import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from customised_stopword import customised_stopword
+from SommeliAI.customised_stopword import customised_stopword
 from sklearn.manifold import TSNE
 # from bokeh.plotting import figure, output_file, show
 # from bokeh.models import Label
 # from bokeh.io import output_notebook
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import data_util
 
 files_root_dir = os.path.join("files")
