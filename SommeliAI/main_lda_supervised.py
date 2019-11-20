@@ -17,15 +17,13 @@ import matplotlib.pyplot as plt
 
 import torch.multiprocessing as mp
 
-print(mp.cpu_count())
 import pyro.poutine as poutine
-
 import warnings
 
+print(mp.cpu_count())
 warnings.filterwarnings("ignore")
 
 from SommeliAI.models import supervisedLDA
-
 
 def main():
     ADAM_LEARN_RATE = 1e-3
@@ -33,8 +31,12 @@ def main():
     SUBSAMPLE_SIZE = 100
     USE_CUDA = False
     num_topic = 10
-    RUN_NAME = "sLDA_" + str(TESTING_SUBSIZE) + "_" + str(SUBSAMPLE_SIZE) + "_" + str(
-        num_topic) + "_enumerated"  # 1/k 1/k error 1/v 1/k error
+    RUN_NAME = (
+        "sLDA_" + str(TESTING_SUBSIZE) +
+        "_" + str(SUBSAMPLE_SIZE) + "_"
+        + str(num_topic) +
+        "_enumerated"
+      )   # 1/k 1/k error 1/v 1/k error
     print(RUN_NAME)
 
     # # #
@@ -51,25 +53,42 @@ def main():
 
     # if not none, then subset the dataframe for testing purposes
     if TESTING_SUBSIZE is not None:
-        full_df = full_df.sample(n=TESTING_SUBSIZE, replace=False, random_state=666)
+        full_df = full_df.sample(
+            n=TESTING_SUBSIZE,
+            replace=False,
+            random_state=666
+        )
 
     # remove stop words, punctuation, digits and then change to lower case
     clean_df = data_util.preprocess(full_df, preprocess=True)
 
-    clean_df, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1,
-                                                                                    custom_stopwords=customised_stopword)
+    clean_df, indexed_txt_list, vocab_dict, vocab_count = (
+        data_util.preprocess_and_index(
+            clean_df,
+            ngram=1,
+            custom_stopwords=customised_stopword
+        )
+    )
     topic_vec = clean_df["variety"]
 
     with open("vocab.pkl", "wb") as f:
         pickle.dump(vocab_dict, f)
 
     scaler = MinMaxScaler()
-    score_vec = pd.DataFrame(scaler.fit_transform(np.vstack(clean_df['points'].values).astype(np.float64)))
+    score_vec = pd.DataFrame(
+        scaler.fit_transform(
+            np.vstack(
+                clean_df['points'].values
+            ).astype(np.float64)
+        )
+    )
 
     unique_topics = np.unique(topic_vec)
 
     topic_map = {unique_topics[i]: i + 1 for i in range(len(unique_topics))}
-    clean_df.loc[:, "class"] = clean_df["variety"].apply(lambda row: topic_map[row])
+    clean_df.loc[:, "class"] = (
+        clean_df["variety"].apply(lambda row: topic_map[row])
+    )
     label_list = score_vec.iloc[:, 0].tolist()
 
     num_vocab = len(vocab_dict)
@@ -77,7 +96,13 @@ def main():
     num_words_per_txt = [len(txt) for txt in indexed_txt_list]
 
     # create object of LDA class
-    orig_lda = supervisedLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
+    orig_lda = supervisedLDA(
+        num_txt,
+        num_words_per_txt,
+        num_topic,
+        num_vocab,
+        SUBSAMPLE_SIZE
+    )
 
     args = (indexed_txt_list, label_list)
 
@@ -120,12 +145,15 @@ def main():
 
                     lamb.append(pyro.param("lamda_q_" + str(i)))
                     lamb_ix.append(i)
-
-                except:
+                except Exception:
                     pass
             print("covered doc:" + str(len(alpha_ix)))
             dtype = [("word", "<U17"), ("index", int)]
-            vocab = np.array([item for item in vocab_dict.items()], dtype=dtype)
+            vocab = np.array(
+                [item for item in vocab_dict.items()],
+                dtype=dtype
+            )
+
             vocab = np.sort(vocab, order="index")
             tr = poutine.trace(guide).get_trace(*args)
             for name, site in tr.nodes.items():
@@ -152,10 +180,21 @@ def main():
             rr.fit(X_train, y_train)
             train_score = rr.score(X_train, y_train)
             test_score = rr.score(X_test, y_test)
-            print("lasso regression on lda: " + str(train_score) + str(test_score))
-            output.write("lasso regression on lda: " + str(train_score) + " " + str(test_score))
+            print(
+                "lasso regression on lda: " +
+                str(train_score) + str(test_score)
+            )
+            output.write(
+                "lasso regression on lda: " +
+                str(train_score) + " " +
+                str(test_score)
+            )
             print("score loss:", r2_score(np.array(y_gold), np.array(y_label)))
-            output.write("score loss:" + str(r2_score(np.array(y_gold), np.array(y_label))) + '\n')
+            output.write(
+                "score loss:" +
+                str(r2_score(np.array(y_gold), np.array(y_label))) +
+                '\n'
+            )
             score_loss.append(r2_score(np.array(y_gold), np.array(y_label)))
             np.save("phi_" + str(step), np.array(X))
             np.save("phi_ix" + str(step), np.array(phi_ix))
@@ -169,7 +208,10 @@ def main():
                 sorted_words_ix = np.argsort(posterior_topics_x_words[i])[::-1]
                 print("topic %s" % i)
                 output.write("topic %s" % i + '\n')
-                output.write(" ".join([word[0] for word in vocab[sorted_words_ix]][:10]) + '\n')
+                output.write(
+                    " ".join(
+                        [word[0] for word in vocab[sorted_words_ix]][:10]
+                    ) + '\n')
     fig = plt.figure()
     plt.plot(losses)
     fig.savefig("trainig_loss" + RUN_NAME + ".png")

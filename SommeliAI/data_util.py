@@ -12,18 +12,16 @@ import string
 from SommeliAI.customised_stopword import customised_stopword
 
 import nltk
-nltk.download("wordnet")
 
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.stem import SnowballStemmer
 from nltk import word_tokenize
-from SommeliAI import customised_stopword
 
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy import sparse
 
-
+nltk.download("wordnet")
 
 lemmatizer = WordNetLemmatizer()
 snow = SnowballStemmer('english')
@@ -60,19 +58,11 @@ def filter_by_topic(tmp_df, keep_top_n_topics=0, min_count_threshold=0):
 
     # filter out any topics that doesn't meet the minimum count threshold
     if min_count_threshold >= 0:
-        topics_to_keep = topic_count_df[topic_count_df > min_count_threshold].index
+        topics_to_keep = topic_count_df[
+            topic_count_df > min_count_threshold].index
         tmp_df = tmp_df[tmp_df["variety"].isin(topics_to_keep)]
 
     return tmp_df
-
-def remove_duplicate(txt):
-    from collections import defaultdict
-    word_count = defaultdict(int)
-    words = txt.split(" ")
-    for word in words:
-        word_count[word] += 1
-
-    return " ".join(word_count.keys())
 
 
 def remove_duplicate(txt):
@@ -88,16 +78,21 @@ def remove_duplicate(txt):
 def clean_stop_punct_digit_n_lower(txt):
 
     txt = re.sub(r"[\'\.,-?!]", " ", txt)
-    #token = txt.split(" ")
+    # token = txt.split(" ")
     token = word_tokenize(txt)
-    #token = lemmatizer.lemmatize(token)
+    # token = lemmatizer.lemmatize(token)
 
-    clean_token = [lemmatizer.lemmatize(word.lower()) for word in token if word.lower()
-                   not in stop_n_punct_words and re.match(r"^.*\d+.*$", word) is None
-                   and len(word) >= 4 and "\'" not in word and not word.isnumeric()]
+    clean_token = [
+        lemmatizer.lemmatize(word.lower())
+        for word in token
+        if word.lower() not in stop_n_punct_words
+        and re.match(r"^.*\d+.*$", word) is None
+        and len(word) >= 4
+        and "\'" not in word
+        and not word.isnumeric()
+    ]
 
     return " ".join(clean_token)
-
 
 
 def preprocess_tokens(txt, ngram, custom_stopwords):
@@ -106,15 +101,24 @@ def preprocess_tokens(txt, ngram, custom_stopwords):
         else set(list(stop_n_punct_words) + custom_stopwords)
 
     if ngram > 1:
-        tokens = ["x_____x" if token.lower() in stop_words or re.match(r"^.*\d+.*$", token)
-                  else snow.stem(token.lower()) for token in tokens]
+        tokens = [
+            "x_____x" if token.lower() in stop_words
+            or re.match(r"^.*\d+.*$", token)
+            else snow.stem(token.lower())
+            for token in tokens
+        ]
     else:
-        tokens = [snow.stem(token.lower()) for token in tokens if token
-                   not in stop_words and re.match(r"^.*\d+.*$", token) is None]
+        tokens = [
+            snow.stem(token.lower())
+            for token in tokens
+            if token not in stop_words
+            and re.match(r"^.*\d+.*$", token) is None
+        ]
 
     tokens = " ".join(tokens)
 
     return tokens
+
 
 def preprocess_and_index(tmp_df, ngram=1, custom_stopwords=None):
 
@@ -147,7 +151,7 @@ def preprocess_and_index(tmp_df, ngram=1, custom_stopwords=None):
 
     sort_ix = np.argsort(value_list)
     key_list = np.array(key_list)[sort_ix]
-    #value_list = np.array(value_list)[sort_ix]
+    # value_list = np.array(value_list)[sort_ix]
 
     sort_ix = np.argsort(y_vec)
     y_vec = y_vec[sort_ix]
@@ -155,13 +159,20 @@ def preprocess_and_index(tmp_df, ngram=1, custom_stopwords=None):
 
     unique_y_vec, y_count_vec = np.unique(y_vec, return_counts=True)
 
-    dict_del_key_vec = [key.startswith('x_____x') or key.endswith('x_____x') for key in key_list]
+    dict_del_key_vec = [
+        key.startswith('x_____x')
+        or key.endswith('x_____x')
+        for key in key_list
+    ]
     key_list = key_list[np.logical_not(dict_del_key_vec)]
     val_list = np.arange(len(key_list))
 
     del_key_vec = np.repeat(dict_del_key_vec, y_count_vec)
     x_vec = x_vec[np.logical_not(del_key_vec)]
-    y_vec = np.repeat(np.arange(len(key_list)), y_count_vec[np.logical_not(dict_del_key_vec)])
+    y_vec = np.repeat(
+        np.arange(len(key_list)),
+        y_count_vec[np.logical_not(dict_del_key_vec)]
+    )
 
     filtered_dict = dict(zip(key_list, val_list))
     unique, counts = np.unique(y_vec, return_counts=True)
@@ -185,7 +196,6 @@ def preprocess_and_index(tmp_df, ngram=1, custom_stopwords=None):
     return tmp_df, indexed_txt_list, filtered_dict, vocab_count
 
 
-
 def preprocess(tmp_df, preprocess=False):
     """ removing stop words, punctuations, digits and make all lower case """
 
@@ -193,8 +203,11 @@ def preprocess(tmp_df, preprocess=False):
     if preprocess:
         tmp_df["description"] = tmp_df["description"].apply(
             clean_stop_punct_digit_n_lower)
-    # words = tmp_df['description'].str.split(expand=True).stack().value_counts()
-    # ratio = tmp_df['description'].apply(remove_duplicate).str.split(expand=True).stack().value_counts() / tmp_df.shape[0]
+    # words = tmp_df['description'] \
+    #           .str.split(expand=True).stack().value_counts()
+    # ratio = tmp_df['description'].apply(remove_duplicate)\
+    #           .str.split(expand=True).stack().value_counts() \
+    #           / tmp_df.shape[0]
     # words.to_csv('freq_words.csv')
     # ratio.to_csv("ratio.csv")
 
@@ -202,23 +215,29 @@ def preprocess(tmp_df, preprocess=False):
 
 
 def conv_word_to_indexed_txt(txt_vec):
-    """ change txt into int indexes, return with dict of indexes & count of each word """
+    """ change txt into int indexes, return with
+        dict of indexes & count of each word
+    """
 
     # transform words into integer indexes, comes out as n x m
     # where n = # txt doc, m = # unique words for whole universe
-    vectorizer = CountVectorizer(stop_words=customised_stopword, analyzer='word')
-    #CountVectorizer(ngram_range=(1,2), analyzer='word')
+    vectorizer = CountVectorizer(
+        stop_words=customised_stopword,
+        analyzer='word'
+    )
+    # CountVectorizer(ngram_range=(1,2), analyzer='word')
     sparse_count_vec = vectorizer.fit_transform(txt_vec)
 
-    # create n x p list of words represented by ints,  where p = # words in each documentx
-    # written in such a convoluted way for speed optimization purposes 
+    # create n x p list of words represented by ints,
+    # where p = # words in each documentx
+    # written in such a convoluted way for speed optimization purposes
     x_vec, y_vec, count_vec = sparse.find(sparse_count_vec)
 
     # add in duplicates
     x_vec = np.repeat(x_vec, count_vec)
     y_vec = np.repeat(y_vec, count_vec)
 
-    #convert to torch variables
+    # convert to torch variables
     x_vec = torch.tensor(x_vec, dtype=torch.int32)
     y_vec = torch.tensor(y_vec, dtype=torch.float)
 
@@ -255,7 +274,7 @@ def generate_hierarchical_mapping(data, hierarchy):
             if d < depth - 1:
                 tmp = tmp[key[d]]
         tmp[key[d]] = tuple(coord)
-    
+
     return mapping
 
 
@@ -271,7 +290,7 @@ def enrich_data_hierarchical_coordinates(data, hierarchy, mapping):
         data.loc[idx, cols] = (
             functools.reduce(lambda x, l: x.get(l), idx, mapping)
         )
-    
+
     data = data.reset_index()
 
     return data.reset_index()
@@ -284,9 +303,13 @@ def simplify_topic_hierarchy(tree):
         if isinstance(tree, dict):
             for key in tree.keys():
                 out.append([key])
-                nlabels = tree_names_to_nested_list(tree[key], out[-1], nlabels+1)
+                nlabels = tree_names_to_nested_list(
+                    tree[key],
+                    out[-1],
+                    nlabels + 1
+                )
         return nlabels
-    
+
     nlabels = tree_names_to_nested_list(tree, out, 0)
     return out, nlabels
 
@@ -301,7 +324,12 @@ def flatten(nested_list):
     return acc
 
 
-def get_all_supervised_requirements(fname=None, max_samples=0, max_annotations=500, max_classes=15):
+def get_all_supervised_requirements(
+    fname=None,
+    max_samples=0,
+    max_annotations=500,
+    max_classes=15
+):
     if fname is not None:
         wine = pd.read_csv(fname)
     else:
@@ -314,13 +342,16 @@ def get_all_supervised_requirements(fname=None, max_samples=0, max_annotations=5
         clean_df = clean_df.head(max_samples)
 
     # make our lives easier and drop any documents with too few words
-    indexed_txt_list, vocab_dict, vocab_counts = conv_word_to_indexed_txt(clean_df['description'])
+    indexed_txt_list, vocab_dict, vocab_counts = conv_word_to_indexed_txt(
+        clean_df['description']
+    )
     document_word_counts = np.array([len(d) for d in indexed_txt_list])
     min_acceptable_words = np.quantile(document_word_counts, 0.05)
     drop = document_word_counts < min_acceptable_words
-    clean_df = clean_df.drop(clean_df.index[drop], axis=0)               
-                                                                                
-    # generate topic labels, potentially dropping rows corresponding to infrequent topics
+    clean_df = clean_df.drop(clean_df.index[drop], axis=0)
+
+    # generate topic labels, potentially dropping rows
+    # corresponding to infrequent topics
     class_assignments = clean_df["variety"]
     topics, topic_counts = np.unique(class_assignments, return_counts=True)
     if max_classes > 0:
@@ -346,15 +377,16 @@ def get_all_supervised_requirements(fname=None, max_samples=0, max_annotations=5
     annots_map = {annots[i]: i for i in range(len(annots))}
     clean_df[annotation_cols] = clean_df[annotation_cols].applymap(
         lambda s: annots_map[s] if s in annots_map else len(annots)
-    ) # force annote all infrequent words as an "other" category
+    )  # force annote all infrequent words as an "other" category
 
     num_topics = len(topics)
     num_vocab = len(vocab_dict)
 
     doc_hist_words, doc_hist_counts = (
-        zip(*[(dd, 
-        (dd == d[:, np.newaxis].numpy()).sum(0))
-        for d in indexed_txt_list for dd in [np.unique(d)]])
+        zip(*[(dd,
+            (dd == d[:, np.newaxis].numpy()).sum(0))
+            for d in indexed_txt_list for dd in [np.unique(d)]
+        ])
     )
 
     docs_words = np.full(
@@ -371,5 +403,11 @@ def get_all_supervised_requirements(fname=None, max_samples=0, max_annotations=5
     for e, d in enumerate(doc_hist_counts):
         docs_counts[e, :len(d)] = d
 
-    return clean_df, docs_words, docs_counts, num_topics, num_vocab, min_acceptable_words
-
+    return (
+        clean_df,
+        docs_words,
+        docs_counts,
+        num_topics,
+        num_vocab,
+        min_acceptable_words
+    )

@@ -1,15 +1,12 @@
 import os
-import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from customised_stopword import customised_stopword
+from SommeliAI.customised_stopword import customised_stopword
 from sklearn.manifold import TSNE
-# from bokeh.plotting import figure, output_file, show
-# from bokeh.models import Label
-# from bokeh.io import output_notebook
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from bokeh.plotting import figure, show
+from bokeh.io import output_notebook
 import data_util
 
 files_root_dir = os.path.join("files")
@@ -35,15 +32,18 @@ def build_tsne(trgt_df, save_fname):
 
     # run TSNE
     tsne_model = TSNE(
-        n_components=2, 
+        n_components=2,
         verbose=1, random_state=0, angle=.99,
         init='pca'
     )
     tsne_df = tsne_model.fit_transform(trgt_arr)
 
     # add group ix to the first column
-    tsne_df = pd.DataFrame(np.append(group_ix[:, None], tsne_df, axis=1),
-    columns=['group', '0', '1'], index=trgt_df.index)
+    tsne_df = pd.DataFrame(
+        np.append(group_ix[:, None], tsne_df, axis=1),
+        columns=['group', '0', '1'],
+        index=trgt_df.index
+    )
 
     # Save the tsne for faster loading on non-refresh setting
     tsne_df.to_csv(save_fname)
@@ -73,7 +73,9 @@ def graph_tsne(tsne_df):
         plot_width=900, plot_height=700
     )
 
-    trgt_plot.scatter(x=tsne_df["0"], y=tsne_df["1"],
+    trgt_plot.scatter(
+        x=tsne_df["0"],
+        y=tsne_df["1"],
         color=graph_colors[group_ix]
     )
     show(trgt_plot)
@@ -87,9 +89,11 @@ def graph_tsne_pair(tsne_tup):
 
 def graph_word_dist(word_df):
 
-    word_df.plot(figsize=(900, 700),
-    title=f"Probability Distribution of {word_df.shape[0]} words",
-                 color=graph_colors[np.arange(word_df.shape[1])])
+    word_df.plot(
+        figsize=(900, 700),
+        title=f"Probability Distribution of {word_df.shape[0]} words",
+        color=graph_colors[np.arange(word_df.shape[1])]
+    )
 
 
 def read_data(TESTING_SUBSIZE, data_root_dir):
@@ -101,17 +105,28 @@ def read_data(TESTING_SUBSIZE, data_root_dir):
 
     # if not none, then subset the dataframe for testing purposes
     if TESTING_SUBSIZE is not None:
-        full_df = full_df.sample(frac=TESTING_SUBSIZE, replace=False, random_state=666)
+        full_df = full_df.sample(
+            frac=TESTING_SUBSIZE,
+            replace=False,
+            random_state=666
+        )
 
     # remove stop words, punctuation, digits and then change to lower case
     clean_df = data_util.preprocess(full_df, preprocess=True)
     print(clean_df)
-    clean_df, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1, custom_stopwords=customised_stopword)
+    clean_df, indexed_txt_list, vocab_dict, vocab_count = (
+        data_util.preprocess_and_index(
+            clean_df,
+            ngram=1,
+            custom_stopwords=customised_stopword
+        )
+    )
     return clean_df, indexed_txt_list, vocab_dict
 
 
 def generate_matrix(indexed_txt_list, vocab_size):
-    counts = [[0 for i in range(vocab_size)]
+    counts = [
+        [0 for i in range(vocab_size)]
         for j in range(len(indexed_txt_list))
     ]
     for j in range(len(indexed_txt_list)):
