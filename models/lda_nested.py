@@ -3,9 +3,9 @@ from torch.distributions import constraints
 
 import pyro
 import pyro.distributions as dist
-from pyro.infer import TraceEnum_ELBO
+from pyro.infer import Trace_ELBO
 
-class collapsedLDA:
+class nestedLDA:
 
     def __init__(self, num_docs, num_words_per_doc,
                  num_topics, num_vocabs, num_subsamples):
@@ -22,7 +22,7 @@ class collapsedLDA:
 
     @property
     def loss(self):
-        return TraceEnum_ELBO(max_plate_nesting=1)
+        return Trace_ELBO(max_plate_nesting=2)
 
     def model(self, doc_list=None):
         """pyro model for lda"""
@@ -44,18 +44,15 @@ class collapsedLDA:
             # theta => per-doc topic vector
             theta = pyro.sample(f"theta_{d}", dist.Dirichlet(alpha))
 
-            X = torch.zeros(self.N[d])
-            for t in pyro.markov(range(self.N[d])):
+            doc = None if doc_list is None else doc_list[d]
 
-                doc = None if doc_list is None else doc_list[d][t]
+            with pyro.plate(f"words_{d}", self.N[d]):
 
                 # assign a topic
-                z_assignment = pyro.sample(
-                    f"z_assignment_{d}_{t}", dist.Categorical(theta),
-                                           infer={"enumerate": "parallel"})
+                z_assignment = pyro.sample(f"z_assignment_{d}", dist.Categorical(theta))               
 
                 # from that topic vec, select a word
-                X[t] = pyro.sample(f"w_{d}_{t}", dist.Categorical(Beta[z_assignment]), obs=doc)
+                X = pyro.sample(f"w_{d}", dist.Categorical(Beta[z_assignment]), obs=doc)
 
             X_List.append(X)
             Theta.append(theta)
@@ -63,6 +60,7 @@ class collapsedLDA:
         Theta = torch.stack(Theta)
 
         return X_List, Beta, Theta
+
 
     def guide(self, doc_list=None):
         """pyro guide for lda inference"""
@@ -84,9 +82,14 @@ class collapsedLDA:
             gamma = pyro.param(f"gamma_q_{d}",
                                (1+0.01*(2*torch.rand(self.K)-1))/self.K, 
                                constraint=constraints.positive)
-    
-            # theta_q => per-doc topic q distribution
+                               
+            # theta_q => posterior per-doc topic vector
             theta_q = pyro.sample(f"theta_{d}", dist.Dirichlet(gamma))
+
+            with pyro.plate(f"words_{d}", self.N[d]):
+
+                # assign a topic
+                pyro.sample(f"z_assignment_{d}", dist.Categorical(theta_q))
 
             Theta_q.append(theta_q)
 
