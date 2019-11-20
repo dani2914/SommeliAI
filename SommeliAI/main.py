@@ -17,14 +17,14 @@ if __name__ == "__main__":
 
     # CONSTANTS
     ADAM_LEARN_RATE = 0.01
-    TESTING_SUBSIZE = 0  # use None if want to use full dataset
+    TESTING_SUBSIZE = 0.02  # use None if want to use full dataset
     SUBSAMPLE_SIZE = 100
     USE_CUDA = True
 
     # if USE_CUDA:
     #     torch.set_default_tensor_type("torch.cuda.FloatTensor")
 
-    full_df = data_util.fetch_dataset()
+    full_df = data_util.fetch_dataset("./data")
 
     # keep topics with the highest number of txt, and add min threshold if want
     full_df = data_util.filter_by_topic(full_df, keep_top_n_topics=10)
@@ -63,21 +63,22 @@ if __name__ == "__main__":
     clean_df.loc[:, "class"] = clean_df["variety"].apply(
         lambda row: topic_map[row]
     )
-    label_list = score_vec.tolist()
+    label_list = []
+    #label_list = score_vec.tolist()
 
     num_topic = len(unique_topics)
     num_vocab = len(vocab_dict)
     num_txt = len(indexed_txt_list)
     num_words_per_txt = [len(txt) for txt in indexed_txt_list]
 
-    orig_lda = supervisedLDA(
-        num_txt, num_words_per_txt,
-        num_topic, num_vocab, SUBSAMPLE_SIZE
+    #orig_lda = supervisedLDA(
+    #    num_txt, num_words_per_txt,
+    #    num_topic, num_vocab, SUBSAMPLE_SIZE
+    #)
+    orig_lda = plainLDA(
+       num_txt, num_words_per_txt,
+       num_topic, num_vocab, SUBSAMPLE_SIZE
     )
-    # orig_lda = plainLDA(
-    #   num_txt, num_words_per_txt,
-    #   num_topic, num_vocab, SUBSAMPLE_SIZE
-    # )
 
     if isinstance(orig_lda, supervisedLDA):
         args = (indexed_txt_list, label_list)
