@@ -47,12 +47,18 @@ def plot_pyro_lda_1_theta_tsne(refresh=False):
 
 
 def plot_pyro_lda_1_beta():
+    mycolors = np.array([color for name, color in mcolors.TABLEAU_COLORS.items()])
+
     beta_fname = "pyro_lda_1_beta.csv"
     beta_path = util.get_filepath(beta_fname)
 
     beta_df = pd.read_csv(beta_path, index_col=0)
 
-    util.graph_word_dist(beta_df)
+    beta_df.plot(figsize=(900, 700),
+    title=f"Probability Distribution of {beta_df.shape[0]} words",
+    color=mycolors[np.arange(beta_df.shape[1])]
+    )
+    #util.graph_word_dist(beta_df)
 
 
 def plot_regression_features():
@@ -154,3 +160,31 @@ def plot_wine_variety():
     ax.set_xlabel("Variety of Wines (TOPIC)")
     ax.set_ylabel("Number of Documents")
     plt.show()
+
+def plot_unique_words_ts():
+    mycolors = np.array([color for name, color in mcolors.TABLEAU_COLORS.items()])
+
+    unique_fname = "pyro_lda_unique_words.csv"
+    unique_path = util.get_filepath(unique_fname)
+
+    unique_df = pd.read_csv(unique_path, index_col=0)
+
+    unique_df.plot(
+        figsize=(900, 700),
+        title=f"Time Series of top 10 uniques words for each topic",
+        color=mycolors[np.arange(unique_df.shape[1])]
+    )
+
+def plot_losses():
+    mycolors = np.array([color for name, color in mcolors.TABLEAU_COLORS.items()])
+
+    unique_fname = "pyro_lda_loss.csv"
+    unique_path = util.get_filepath(unique_fname)
+
+    unique_df = pd.read_csv(unique_path, index_col=0)
+
+    unique_df.plot(
+        figsize=(900, 700),
+        title=f"Times Series of Losses",
+        color=mycolors[np.arange(unique_df.shape[1])]
+    )
