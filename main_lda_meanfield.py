@@ -1,4 +1,4 @@
-""" main driver for collapsed LDA"""
+""" main driver for meanfield LDA"""
 
 import os
 import torch
@@ -8,7 +8,7 @@ import numpy as np
 import pyro
 from pyro.optim import Adam
 
-from models import lda_collapsed
+from models import lda_meanfield
 
 def main():
     # CONSTANTS
@@ -72,7 +72,7 @@ def main():
 
 
     # create object of LDA class
-    lda = lda_collapsed.collapsedLDA(
+    lda = lda_meanfield.meanfieldLDA(
         num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
 
     args = (indexed_txt_list,)
