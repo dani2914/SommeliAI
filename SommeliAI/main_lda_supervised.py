@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 import pyro
 from pyro.optim import Adam
 from SommeliAI.customised_stopword import customised_stopword
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LassoCV
 import matplotlib.pyplot as plt
 
@@ -74,7 +74,7 @@ def main():
     with open("vocab.pkl", "wb") as f:
         pickle.dump(vocab_dict, f)
 
-    scaler = MinMaxScaler()
+    scaler = StandardScaler()
     score_vec = pd.DataFrame(
         scaler.fit_transform(
             np.vstack(
