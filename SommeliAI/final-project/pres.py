@@ -119,12 +119,12 @@ def plot_slda_regression_topic_words():
     eta = np.load("files/pyro_slda_full_eta_5000.npy")
     lamb = np.load("files/pyro_slda_full_lambda_5000.npy")
     phi = np.load("files/pyro_slda_full_phi_5000.npy")
-    eta = np.load("files/pyro_slda_eta_5000.npy")
-    lamb = np.load("files/pyro_slda_lambda_5000.npy")
+    eta = np.load("files/pyro_slda_full_eta_5000.npy")
+    lamb = np.load("files/pyro_slda_full_lambda_5000.npy")
     # phi = np.load("files/pyro_slda_phi_5000.npy")
 
     num_topic = 10
-    with open('files/trainset_slda_vocab.pkl', 'rb') as f:
+    with open('files/SommeliAI_vocab_dict.pkl', 'rb') as f:
         vocab_dict = pickle.load(f)
 
     dtype = [("word", "<U17"), ("index", int)]
@@ -141,8 +141,6 @@ def plot_slda_regression_topic_words():
 
         word_index = np.argsort(beta)[::-1]
         words = "\n".join([word[0] for word in vocab[word_index][:10]])
-        print(word_index[:20])
-        print(eta)
         x = i
         y = eta[i]
 
