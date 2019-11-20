@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import re
 import string
-from customised_stopword import customised_stopword
+from SommeliAI.customised_stopword import customised_stopword
 
 import nltk
 
