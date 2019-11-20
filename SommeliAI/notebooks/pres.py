@@ -8,7 +8,8 @@ import pandas as pd
 import numpy as np
 import pickle
 import matplotlib
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
+import matplotlib.colors as mcolors
 
 from SommeliAI.models import regression_baseline
 
@@ -60,7 +61,7 @@ def plot_regression_features():
     data_root_dir = os.path.join("..", "data")
     clean_df, data, vocab_dict = util.read_data(TESTING_SUBSIZE, data_root_dir)
     X = util.generate_matrix(data, len(vocab_dict))
-    scaler = MinMaxScaler()
+    scaler = StandardScaler()
     score_vec = pd.DataFrame(scaler.fit_transform(
         np.vstack(
             clean_df['points'].values
@@ -90,7 +91,7 @@ def plot_regression_response_distribution():
 
     clean_df, indexed_txt_list, vocab_dict = util.read_data(TESTING_SUBSIZE, data_root_dir)
 
-    scaler = MinMaxScaler()
+    scaler = StandardScaler()
     score_vec = pd.DataFrame(scaler.fit_transform(np.vstack(clean_df['points'].values).astype(np.float64)))
 
     plt.hist(score_vec.iloc[:, 0])
@@ -130,4 +131,26 @@ def plot_slda_regression_topic_words():
         plt.text(x + .3, y - .5, words, fontsize=10)
 
     plt.title("sLDA coefficient for each topic")
+    plt.show()
+
+
+def plot_wine_variety():
+    mycolors = np.array([color for name, color in mcolors.TABLEAU_COLORS.items()])
+    data_root_dir = os.path.join("..", "data")
+    full_df = data_util.fetch_dataset(data_root_dir)
+
+    clean_df = data_util.preprocess(full_df, preprocess=True)
+    print(clean_df.head)
+    _, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1)
+    print("vocabulary size: " + str(len(vocab_dict)))
+    clean_df, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1,
+                                                                                         custom_stopwords=customised_stopword)
+    print("vocabulary size after removing stopwords: " + len(vocab_dict))
+    value_counts = full_df.variety.value_counts()
+    tmp_colors = np.repeat(mycolors[0:2], np.array([10, value_counts.shape[0]-10]))
+
+    ax = full_df.variety.value_counts().plot(kind="bar", figsize=(20,10),
+    title="Document Counts by Topic", color=tmp_colors)
+    ax.set_xlabel("Variety of Wines (TOPIC)")
+    ax.set_ylabel("Number of Documents")
     plt.show()

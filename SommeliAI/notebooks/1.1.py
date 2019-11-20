@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from SommeliAI.customised_stopword import customised_stopword
-
+print(customised_stopword)
 mycolors = np.array([color for name, color in mcolors.TABLEAU_COLORS.items()])
 
 # %% [markdown]
