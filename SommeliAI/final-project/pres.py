@@ -194,7 +194,7 @@ def plot_unique_words_ts():
         [color for name, color in mcolors.TABLEAU_COLORS.items()]
     )
 
-    unique_fname = "pyro_lda_unique_words.csv"
+    unique_fname = "files/pyro_lda_unique_words.csv"
     unique_path = util.get_filepath(unique_fname)
 
     unique_df = pd.read_csv(unique_path, index_col=0)
@@ -211,7 +211,7 @@ def plot_losses():
         [color for name, color in mcolors.TABLEAU_COLORS.items()]
     )
 
-    unique_fname = "pyro_lda_loss.csv"
+    unique_fname = "files/pyro_lda_loss.csv"
     unique_path = util.get_filepath(unique_fname)
 
     unique_df = pd.read_csv(unique_path, index_col=0)
