@@ -1,10 +1,10 @@
-import notebooks.util as util
 import matplotlib
 matplotlib.rcParams.update({'font.size': 12})
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
 import numpy as np
 import os
+import notebooks.util as util
 from models import regression_baseline
 import matplotlib.pyplot as plt
 

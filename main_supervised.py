@@ -55,19 +55,17 @@ def main():
 
     # remove stop words, punctuation, digits and then change to lower case
     clean_df = data_util.preprocess(full_df, preprocess=True)
-    print(clean_df)
+
     clean_df, indexed_txt_list, vocab_dict, vocab_count = data_util.preprocess_and_index(clean_df, ngram=1,
                                                                                     custom_stopwords=customised_stopword)
     topic_vec = clean_df["variety"]
+
     with open("vocab.pkl", "wb") as f:
         pickle.dump(vocab_dict, f)
 
     scaler = MinMaxScaler()
     score_vec = pd.DataFrame(scaler.fit_transform(np.vstack(clean_df['points'].values).astype(np.float64)))
-    plt.hist(score_vec.iloc[:, 0])
-    plt.title("Historgram of scaled wine score")
-    plt.show()
-    np.save("SommeliAI_labels.npy", np.array(score_vec))
+
     unique_topics = np.unique(topic_vec)
 
     topic_map = {unique_topics[i]: i + 1 for i in range(len(unique_topics))}
@@ -77,7 +75,7 @@ def main():
     num_vocab = len(vocab_dict)
     num_txt = len(indexed_txt_list)
     num_words_per_txt = [len(txt) for txt in indexed_txt_list]
-    print(num_vocab)
+
     # create object of LDA class
     orig_lda = supervisedLDA(num_txt, num_words_per_txt, num_topic, num_vocab, SUBSAMPLE_SIZE)
 
@@ -133,10 +131,6 @@ def main():
             for name, site in tr.nodes.items():
                 if name == "eta":
                     eta = site["value"]
-                if "lamda" in name:
-                    print(name)
-                if "phi" in name:
-                    print(name)
                 if name == "beta":
                     beta = site["value"]
             y_label = []
@@ -150,8 +144,7 @@ def main():
                 y_label.append(predicted_label)
 
                 y_gold.append(label_list[alpha_ix[ix]])
-            print(X)
-            print(eta.detach().numpy())
+
             X_train, X_test, y_train, y_test = \
                 train_test_split(np.array(X), np.array(y_gold), test_size=0.2,
                                  random_state=3)
@@ -170,13 +163,11 @@ def main():
             np.save("eta_" + str(step), eta.detach().numpy())
             np.save("lambda_" + str(step), np.array(lamb))
             np.save("alpha_" + str(step), np.array(alpha))
-            print(np.array(lamb).shape)
+
             posterior_topics_x_words = beta.data.numpy()
-            print(posterior_topics_x_words)
             for i in range(num_topic):
                 sorted_words_ix = np.argsort(posterior_topics_x_words[i])[::-1]
                 print("topic %s" % i)
-                print([word[0] for word in vocab[sorted_words_ix][:10]])
                 output.write("topic %s" % i + '\n')
                 output.write(" ".join([word[0] for word in vocab[sorted_words_ix]][:10]) + '\n')
     fig = plt.figure()
