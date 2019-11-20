@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import os
 import notebooks.util as util
-from models import regression_baseline
+from SommeliAI.models import regression_baseline
 import matplotlib.pyplot as plt
 
 # %%

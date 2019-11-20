@@ -1,7 +1,7 @@
 """ main driver """
 import time
 import os
-import data_util
+import SommeliAI.data_util
 import numpy as np
 import pandas as pd
 import pickle
@@ -10,20 +10,20 @@ import torch
 from sklearn.model_selection import train_test_split
 import pyro
 from pyro.optim import Adam
-from customised_stopword import customised_stopword
+from SommeliAI.customised_stopword import customised_stopword
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.linear_model import LassoCV
 import matplotlib.pyplot as plt
 
 import torch.multiprocessing as mp
 
-from models import supervisedLDA
 import pyro.poutine as poutine
 import warnings
 
 print(mp.cpu_count())
 warnings.filterwarnings("ignore")
 
+from SommeliAI.models import supervisedLDA
 
 def main():
     ADAM_LEARN_RATE = 1e-3

@@ -1,5 +1,5 @@
 from .plainlda import plainLDA
-from .supervisedlda import supervisedLDA
+from .lda_supervised import supervisedLDA
 from .regression_baseline import regression_baseline
 __all__ = [
     "plainLDA",
