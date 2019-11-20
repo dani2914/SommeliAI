@@ -1,20 +1,10 @@
 import pyro.distributions as dist
-from pyro.infer import TraceEnum_ELBO
-import argparse
-import functools
-import numpy as np
-import logging
-import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
-import data_util
 import torch
-from torch import nn
 from torch.distributions import constraints
 
 import pyro
-import pyro.distributions as dist
-from pyro.infer import SVI, TraceMeanField_ELBO
-from pyro.optim import ClippedAdam
+from pyro.infer import TraceMeanField_ELBO
+
 
 class plainLDA:
 
@@ -58,16 +48,21 @@ class plainLDA:
             with pyro.plate(f"words_{d}", self.N[d]):
 
                 # assign a topic
-                z_assignment = pyro.sample(f"z_assignment_{d}",
-                                            dist.Categorical(theta),
-                                            infer={"enumerate": "parallel"})
+                z_assignment = pyro.sample(
+                    f"z_assignment_{d}",
+                    dist.Categorical(theta),
+                    infer={"enumerate": "parallel"}
+                )
                 # from that topic vec, select a word
-                w = pyro.sample(f"w_{d}", dist.Categorical(beta[z_assignment]), obs=doc)
+                w = pyro.sample(
+                    f"w_{d}",
+                    dist.Categorical(beta[z_assignment]),
+                    obs=doc
+                )
 
             X.append(w)
             Theta.append(theta)
         return X, beta, Theta
-
 
     def guide(self, doc_list=None):
         """pyro guide for lda inference"""

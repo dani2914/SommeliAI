@@ -1,5 +1,6 @@
 # read documents data
 
+
 class document:
     def __init__(self, length):
         self.length = length
@@ -7,6 +8,7 @@ class document:
         self.words = []
         self.total = 0
         self.index = -1
+
 
 def read_corpus(data_file):
     corpus = []
