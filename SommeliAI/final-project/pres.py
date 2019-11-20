@@ -1,7 +1,7 @@
 from SommeliAI import data_util
 import matplotlib.pyplot as plt
 import os
-import SommeliAI.notebooks.util as util
+import util
 from SommeliAI.customised_stopword import customised_stopword
 import torch
 from torch import dist
