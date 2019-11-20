@@ -1,18 +1,7 @@
 # %% Imports
-import data_util
-import os
-import glob
-import pandas as pd
-import numpy as np
+from SommeliAI import data_util
 import matplotlib.pyplot as plt
-import pyro
-import pyro.distributions as dist
-import torch
-from sklearn.manifold import TSNE
-from bokeh.plotting import figure, output_file, show
-from bokeh.models import Label
-from bokeh.io import output_notebook
-import matplotlib.colors as mcolors
+import os
 
 # %% [markdown]
 # Section 1.1
@@ -20,7 +9,8 @@ import matplotlib.colors as mcolors
 
 # %%
 
-full_df = data_util.fetch_dataset()
+data_root_dir = os.path.join("..", "data")
+full_df = data_util.fetch_dataset(data_root_dir)
 full_df = data_util.filter_by_topic(full_df, keep_top_n_topics=10)
 
 ax = full_df.variety.value_counts().plot(kind="bar", figsize=(20,10), 

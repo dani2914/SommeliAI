@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import re
 import string
-from customised_stopword import customised_stopword
+from SommeliAI.customised_stopword import customised_stopword
 
 import nltk
 nltk.download("wordnet")
@@ -18,7 +18,7 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.stem import SnowballStemmer
 from nltk import word_tokenize
-from customised_stopword import customised_stopword
+from SommeliAI import customised_stopword
 
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy import sparse
