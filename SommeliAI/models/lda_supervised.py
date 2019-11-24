@@ -59,7 +59,7 @@ class supervisedLDA():
             # theta => per-doc topic vector
             theta = pyro.sample("theta_" + str(d), dist.Dirichlet(alpha))
 
-            # doc = None if data is None else data[d]
+            doc = None if data is None else data[d]
             with pyro.plate("words_" + str(d), self.N[d]):
                 # assign a topic
                 z_assignment = pyro.sample(
@@ -67,11 +67,11 @@ class supervisedLDA():
                     dist.Categorical(theta)
                 )
                 # from that topic vec, select a word
-                # w = pyro.sample(
-                #     "w_" + str(d),
-                #     dist.Categorical(beta[z_assignment]),
-                #     obs=doc
-                # )
+                w = pyro.sample(
+                    "w_" + str(d),
+                    dist.Categorical(beta[z_assignment]),
+                    obs=doc
+                )
             z_bar = torch.zeros(self.K)
             for z in z_assignment:
                 z_bar[z] += 1
@@ -140,7 +140,8 @@ class supervisedLDA():
                 constraint=constraints.positive
             )
             # theta_q => posterior per-doc topic vector
-            # theta_q = pyro.sample("theta_" + str(d), dist.Dirichlet(gamma))
+
+            theta_q = pyro.sample("theta_" + str(d), dist.Dirichlet(gamma))
 
             with pyro.plate("words_" + str(d), self.N[d]) as w_vec:
                 # assign a topic
