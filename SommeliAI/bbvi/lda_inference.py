@@ -4,9 +4,10 @@ import lda_model
 import read_data
 from numba.extending import get_cython_function_address
 from numba import vectorize
+from math import lgamma
 import ctypes
 
-np.random.seed(222)
+np.random.seed(123)
 
 addr = get_cython_function_address(
     "scipy.special.cython_special",
@@ -29,8 +30,9 @@ def psi(x):
 @nb.jit(nopython=True)
 def dirichlet_logpdf(probs, concentrations):
     out = np.sum((concentrations - 1.) * np.log(probs))
-    out += psi(np.sum(concentrations))
-    out -= np.sum(psi(concentrations))
+    out += lgamma(np.sum(concentrations))
+    for c in range(len(concentrations)):
+        out -= lgamma(concentrations[c])
     return out
 
 
@@ -60,10 +62,10 @@ def jit_inference(
     doc_counts,
     alpha,
     var_gamma,
-    var_phi, 
+    var_phi,
     log_prob_w
 ):
-    S = 10  # samples
+    S = 100  # samples
     rho = 1.e-3  # learning rate
     num_topics = log_prob_w.shape[0]
     doc_length = len(doc_words)
@@ -96,10 +98,10 @@ def jit_inference(
 
     # S length vectors
     ln_p_theta = dirichlet_logpdf(
-        np.transpose(sample_theta),
+        sample_theta,
         alpha * np.ones(num_topics)
     )
-    ln_q_theta = dirichlet_logpdf(np.transpose(sample_theta), var_gamma)
+    ln_q_theta = dirichlet_logpdf(sample_theta, var_gamma)
 
     # explicitly evaluate expectation
     # E_p_z = np.sum(ln_theta * np.sum(phi, 0), 1) # S length vector
@@ -166,15 +168,15 @@ def jit_inference(
             var_phi[n][j] = var_phi[n][j] + rho * grad_phi[i]
             if var_phi[n][j] < 0:  # bound phi
                 var_phi[n][j] = 0
-            var_phi[n] /= np.sum(var_phi[n])  # normalization
+            var_phi[n] /= (np.sum(var_phi[n]) + 1e-7)  # normalization
         var_phi = np.where(~np.isnan(var_phi), var_phi, 1. / num_topics)
 
     return var_gamma, var_phi
 
-# @nb.jit(nopython=True)
+@nb.jit(nopython=True)
 def jit_m_step(doc_words, doc_counts, eta, var_gamma, var_phi, log_prob_w, var_lambda):
     # update betas
-    S = 10  # samples
+    S = 100  # samples
     rho = 1.e-4  # learning rate
     num_topics = log_prob_w.shape[0]
     num_terms = log_prob_w.shape[1]
@@ -182,32 +184,39 @@ def jit_m_step(doc_words, doc_counts, eta, var_gamma, var_phi, log_prob_w, var_l
 
     # sample S theta from the updated gamma
     sample_theta = random_dirichlet(var_gamma)
-    sample_theta = (sample_theta + 1e-2 / S) / (1 + 1e-2)
+    sample_theta = (sample_theta + 1e-4 / S) / (1 + 1e-4)
 
     # sample S z for each word n
     sample_zs = np.zeros((doc_length, S), dtype=np.int32)
     for n in range(doc_length):
         # sample S z for each word
+        # print("here?")
+        # print(var_phi[n, :])
         sample_z = np.random.multinomial(1, var_phi[n, :], S)  # S * k matrix
-        which_j = np.zeros(S, dtype=np.int64)
+        # print("here!")
+        which_j = np.zeros(S, dtype=np.int32)
         for s in range(S):
             which_j[s] = np.argmax(sample_z[s, :])  # S length vector
             sample_zs[n, s] = which_j[s]
 
     for k in range(num_topics):
+        lbound = -1.e-10
+
         sample_beta = np.zeros((S, num_terms))
         for s in range(S):
             sample_beta[s, :] = random_dirichlet(var_lambda[k, :])
+        sample_beta = (sample_beta + 1e-4 / S) / (1 + 1e-4)
 
-        dig = psi(var_lambda)
-        var_lambda_sum = np.sum(var_lambda, 1)
+        dig = psi(var_lambda[k, :])
+        var_lambda_sum = np.sum(var_lambda[k, :])
         digsum = psi(var_lambda_sum)
 
-        ln_beta = np.log(np.clip(sample_beta, 1e-2, np.inf))  # S * V matrix
+        ln_beta = np.log(sample_beta)  # S * V matrix
+        ln_beta = np.where(np.isnan(ln_beta) | (ln_beta < lbound), lbound, ln_beta)
 
-        dqdb = ln_beta - dig + digsum[:, np.newaxis]  # S * V matrix
+        dqdb = ln_beta - dig + digsum  # [:, np.newaxis]  # S * V matrix
         # raise ValueError("i")
-        ln_p_w = ln_beta[:, doc_words[n]] # S length vector
+        # ln_p_w = ln_beta[:, doc_words[n]] # S length vector
 
         # monte-carlo estimated expectation
         E_p_w_z_beta = np.zeros(S)  # S length vector
@@ -224,19 +233,24 @@ def jit_m_step(doc_words, doc_counts, eta, var_gamma, var_phi, log_prob_w, var_l
         for s in range(S):
             ln_p_beta[s] = (
                 dirichlet_logpdf(
-                    np.transpose(sample_beta[s, :]),
+                    sample_beta[s, :],
                     eta * np.ones(num_terms))
             )
+        ln_p_beta = np.where(np.isnan(ln_p_beta) | (ln_p_beta < lbound), lbound, ln_p_beta)
         ln_q_beta = np.zeros(S)
         for s in range(S):
-            ln_q_beta[s] = dirichlet_logpdf(sample_beta[s, :], var_lambda[s, :])
+            ln_q_beta[s] = dirichlet_logpdf(sample_beta[s, :], var_lambda[k, :])
+        ln_q_beta = np.where(np.isnan(ln_q_beta) | (ln_q_beta < lbound), lbound, ln_q_beta)
 
-        grad_lambda = np.average(
-            dqdb * np.reshape(ln_p_beta - ln_q_beta + ln_p_w, (S, 1)), 0)
-        var_lambda[k, :] = np.clip(
+        grad_lambda = np.zeros(num_terms)
+        for s in range(S):
+            # print(ln_p_beta[s], ln_q_beta[s], E_p_w_z_beta[s], dqdb[s])
+            grad_lambda += dqdb[s] * (ln_p_beta[s] - ln_q_beta[s] + E_p_w_z_beta[s])
+        grad_lambda /= S
+        var_lambda[k, :] = np.where(
+            var_lambda[k, :] + rho * grad_lambda >= 1.e-1,
             var_lambda[k, :] + rho * grad_lambda,
-            1.e-3,
-            np.inf
+            1e-1
         )
     return var_lambda
 
@@ -260,8 +274,8 @@ if __name__ == "__main__":
             lda.var_phi[e],
             lda.log_prob_w
         )
-        # if i == 14:
-        #     raise ValueError("oh!")
+        if i == 100:
+            raise ValueError("oh!")
         lda.var_lambda = jit_m_step(
             corpus[e].words,
             corpus[e].counts,
