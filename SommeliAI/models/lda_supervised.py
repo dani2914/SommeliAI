@@ -3,7 +3,7 @@ from torch.distributions import constraints
 import numpy as np
 import pyro
 import pyro.distributions as dist
-from pyro.infer import Trace_ELBO
+from pyro.infer import TraceEnum_ELBO
 
 
 class supervisedLDA():
@@ -21,7 +21,7 @@ class supervisedLDA():
 
     @property
     def loss(self):
-        return Trace_ELBO(max_plate_nesting=2)
+        return TraceEnum_ELBO(max_plate_nesting=2)
 
     def model(self, data=None, label=None):
         """pyro model for lda"""

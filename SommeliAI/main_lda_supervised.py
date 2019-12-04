@@ -208,6 +208,7 @@ def main():
             posterior_topics_x_words = beta.data.numpy()
             for i in range(num_topic):
                 sorted_words_ix = np.argsort(posterior_topics_x_words[i])[::-1]
+                print([word[0] for word in vocab[sorted_words_ix]][:10])
                 print("topic %s" % i)
                 output.write("topic %s" % i + '\n')
                 output.write(
