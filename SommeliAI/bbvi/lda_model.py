@@ -9,6 +9,7 @@ class Lda:
         self.alpha = 1.0
         self.eta = 1.0
         self.var_gamma = np.ones((num_docs, num_topics)) / num_topics
+        self.var_phi = [np.empty(0) for _ in range(num_docs)]
         self.var_lambda = np.ones((num_topics, num_terms))
         self.log_prob_w = np.ones((num_topics, num_terms))
         self.vocab = {}
